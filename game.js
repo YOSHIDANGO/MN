@@ -101,6 +101,8 @@ const ASSET_PATHS = {
   player: "assets/player_nurse.png",
   helper: "assets/helper_white_blood_cell.png",
   boss: "assets/boss_cold_virus.png",
+  patient_cold: "assets/patient_cold.png",
+  patient_food_poisoning: "assets/patient_food_poisoning.png",
   bg_mouth: "assets/bg_mouth.png",
   bg_throat: "assets/bg_throat.png",
   bg_esophagus: "assets/bg_esophagus.png",
@@ -206,6 +208,8 @@ const state = {
   bossHpLag: 0,
   bossDamageFlashTimer: 0,
   injectionTimer: 0,
+  stageEntryFlashTimer: 0,
+  patientSwapTimer: 0,
   learningSummary: [],
   player: null,
   helper: null,
@@ -310,6 +314,8 @@ function resetGame(startScene = "playing") {
   state.bossHpLag = GAME.bossMaxHp;
   state.bossDamageFlashTimer = 0;
   state.injectionTimer = 0;
+  state.stageEntryFlashTimer = 0;
+  state.patientSwapTimer = 0;
   state.learningSummary = [...getCurrentPatient().learningSummary];
   state.player = makePlayer();
   state.helper = null;
@@ -358,6 +364,11 @@ function getCurrentPatientTheme() {
   };
 }
 
+function getCurrentPatientAssetKey(patient = getCurrentPatient()) {
+  if (!patient) return null;
+  return patient.id === "Patient 02" ? "patient_food_poisoning" : "patient_cold";
+}
+
 function getCurrentAreaDuration() {
   const patient = getCurrentPatient();
   const modifier = getStageModifier();
@@ -374,9 +385,11 @@ function changePatientSelection(direction) {
   do {
     next = (next + direction + PATIENTS.length) % PATIENTS.length;
   } while (!PATIENTS[next].unlocked && next !== state.currentPatientIndex);
+  if (next === state.currentPatientIndex) return;
   state.currentPatientIndex = next;
   state.learningSummary = [...getCurrentPatient().learningSummary];
   state.uiNoiseTimer = 6;
+  state.patientSwapTimer = 20;
 }
 
 function getAreaLabel() {
@@ -395,6 +408,7 @@ function update() {
   }
   if (state.scene === "patientSelect") {
     state.uiNoiseTimer = Math.max(0, state.uiNoiseTimer - 1);
+    state.patientSwapTimer = Math.max(0, state.patientSwapTimer - 1);
     return;
   }
   if (state.scene === "briefing") {
@@ -459,6 +473,9 @@ function updateInjectionScene() {
   if (state.injectionTimer === 24) {
     state.screenFlashTimer = 8;
     state.uiNoiseTimer = 8;
+  }
+  if (state.injectionTimer === 118) {
+    state.screenFlashTimer = 10;
   }
   if (state.injectionTimer >= 150) {
     beginPlaying();
@@ -2381,6 +2398,18 @@ function drawOverlays() {
     ctx.fillRect(0, 0, GAME.width, GAME.height);
   }
 
+  if (state.stageEntryFlashTimer > 0) {
+    const alpha = state.stageEntryFlashTimer / 24;
+    ctx.fillStyle = `rgba(255,255,255,${alpha * 0.38})`;
+    ctx.fillRect(0, 0, GAME.width, GAME.height);
+    ctx.strokeStyle = `rgba(142,246,255,${alpha * 0.78})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(124, GAME.height / 2, 36 + (1 - alpha) * 180, 84 + (1 - alpha) * 150, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    state.stageEntryFlashTimer -= 1;
+  }
+
   if (state.scene === "gameover") {
     drawResultOverlay("GAME OVER", "Patient treatment was interrupted.", "SPACE / ENTER / TAP TO RESTART");
   }
@@ -2390,6 +2419,11 @@ function drawOverlays() {
 }
 
 function drawTitleEffects() {
+  ctx.fillStyle = "rgba(10, 20, 28, 0.42)";
+  for (let i = 0; i < 6; i += 1) {
+    const x = i * 190 - ((state.frame * 0.42) % 190);
+    ctx.fillRect(x, 80, 132, 320);
+  }
   ctx.fillStyle = "rgba(18, 28, 38, 0.44)";
   for (let i = 0; i < 5; i += 1) {
     const x = i * 240 - ((state.frame * 0.55) % 240);
@@ -2411,39 +2445,41 @@ function drawTitleEffects() {
   ctx.strokeStyle = "rgba(142, 246, 255, 0.35)";
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(120, 450);
-  ctx.lineTo(240, 450);
-  ctx.lineTo(260, 442);
-  ctx.lineTo(272, 458);
-  ctx.lineTo(288, 430);
-  ctx.lineTo(304, 450);
-  ctx.lineTo(820, 450);
+  ctx.moveTo(140, 416);
+  ctx.lineTo(248, 416);
+  ctx.lineTo(268, 408);
+  ctx.lineTo(280, 424);
+  ctx.lineTo(296, 394);
+  ctx.lineTo(314, 416);
+  ctx.lineTo(820, 416);
   ctx.stroke();
+  drawScanLines(180, 148, 600, 160, 8);
+  if (Math.floor(state.frame / 28) % 2 === 0) {
+    ctx.fillStyle = "rgba(255,255,255,0.06)";
+    ctx.fillRect(214, 178, 180, 3);
+  }
   if (Math.floor(state.frame / 20) % 2 === 0) {
     ctx.fillStyle = "rgba(255, 242, 165, 0.9)";
     ctx.font = "bold 28px monospace";
-    ctx.fillText("PRESS SPACE / ENTER / TAP TO START", 186, 440);
+    ctx.fillText("PRESS SPACE / ENTER / TAP TO START", 186, 452);
   }
 }
 
 function drawTitleScreen() {
-  ctx.fillStyle = "rgba(243, 232, 214, 0.94)";
-  ctx.fillRect(92, 58, 776, 420);
-  ctx.strokeStyle = "rgba(70, 54, 46, 0.44)";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(92, 58, 776, 420);
-  ctx.fillStyle = "#493a31";
-  ctx.font = "bold 40px sans-serif";
-  ctx.fillText("MICRO NURSE RESCUE", 190, 116);
-  ctx.font = "18px sans-serif";
-  ctx.fillText("Patient No.001", 134, 162);
-  ctx.fillText("Symptoms: High fever, cough, sore throat", 134, 196);
-  ctx.fillText("Cause: Common cold virus", 134, 230);
-  ctx.fillText("Mission: Enter the body and remove the infection source", 134, 264);
-  ctx.fillText("Route: Mouth / Throat / Esophagus / Stomach / Intestine / Infection Nest / Boss", 134, 298);
-  ctx.fillStyle = "#5a4f46";
-  ctx.fillText("PC: Arrow Keys / WASD   Space: Shot   Shift: Bomb", 134, 350);
-  ctx.fillText("Mobile: Virtual stick   SHOT / BOMB", 134, 382);
+  drawMonitorPanel(168, 132, 624, 176);
+  ctx.fillStyle = "#dffcff";
+  ctx.font = "bold 16px monospace";
+  ctx.fillText("BIO-MEDICAL MICRO DEPLOYMENT SYSTEM", 196, 166);
+  ctx.font = "bold 52px sans-serif";
+  ctx.fillText("MICRO NURSE", 194, 226);
+  ctx.fillText("RESCUE", 194, 280);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "13px monospace";
+  ctx.fillText("FUTURE INTERNAL TREATMENT SHOOTER", 198, 304);
+  drawMonitorPanel(266, 366, 430, 44);
+  ctx.fillStyle = "#dffcff";
+  ctx.font = "bold 14px monospace";
+  ctx.fillText("PRESS START", 432, 394);
 }
 
 function drawPatientSelectScreen() {
@@ -2518,25 +2554,28 @@ function drawPatientSelectScreen() {
   ctx.font = "bold 22px monospace";
   ctx.fillText("LEFT / RIGHT TO CHANGE   ENTER / TAP TO BRIEFING", 116, 492);
 
-  drawSelectArrowButton(24, 424, "<", theme, false);
-  drawSelectArrowButton(896, 424, ">", theme, false);
-  drawSelectArrowButton(874, 470, "OK", theme, true);
+  drawSelectArrowButton(26, 420, "<", theme, false);
+  drawSelectArrowButton(894, 420, ">", theme, false);
+  drawSelectArrowButton(454, 470, "OK", theme, true);
 }
 
 function drawSelectArrowButton(x, y, label, theme, wide) {
-  const w = wide ? 52 : 40;
-  const h = 40;
+  const w = wide ? 72 : 48;
+  const h = 48;
   ctx.fillStyle = "rgba(8, 16, 24, 0.86)";
   ctx.fillRect(x, y, w, h);
   ctx.strokeStyle = theme.accent;
   ctx.lineWidth = 2;
   ctx.strokeRect(x, y, w, h);
   ctx.fillStyle = theme.accent;
-  ctx.font = wide ? "bold 18px monospace" : "bold 22px monospace";
-  ctx.fillText(label, x + (wide ? 13 : 12), y + 26);
+  ctx.font = wide ? "bold 22px monospace" : "bold 28px monospace";
+  ctx.fillText(label, x + (wide ? 20 : 14), y + 31);
 }
 
 function drawPatientCaseSilhouette(patient, x, y, cardW, cardH, theme) {
+  if (drawPatientCaseAsset(patient, x, y, theme)) {
+    return;
+  }
   const pulse = 0.06 + Math.sin(state.frame * 0.08) * 0.01;
   const lineColor = theme.accent;
   const secondary = theme.secondary;
@@ -2614,6 +2653,54 @@ function drawPatientCaseSilhouette(patient, x, y, cardW, cardH, theme) {
   ctx.restore();
 }
 
+function drawPatientCaseAsset(patient, x, y, theme) {
+  const key = getCurrentPatientAssetKey(patient);
+  const asset = assets[key];
+  if (!asset) return false;
+  const imageReady = asset.ready || (asset.image && asset.image.complete && asset.image.naturalWidth > 0);
+  if (!imageReady) return false;
+
+  const swapFade = state.patientSwapTimer > 0 ? 1 - state.patientSwapTimer / 20 : 1;
+  const baseAlpha = 0.07 + Math.sin(state.frame * 0.08) * 0.01;
+  const alpha = Math.max(0.04, Math.min(0.12, baseAlpha * Math.max(0.35, swapFade)));
+  const drawHeight = 164;
+  const aspect = asset.image.naturalWidth > 0 ? asset.image.naturalWidth / asset.image.naturalHeight : 0.62;
+  const drawWidth = drawHeight * aspect;
+  const drawX = x - drawWidth * 0.35;
+  const drawY = y - drawHeight * 0.58;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(asset.image, drawX, drawY, drawWidth, drawHeight);
+  ctx.globalCompositeOperation = "source-atop";
+  ctx.fillStyle = theme.accent;
+  ctx.globalAlpha = alpha * 0.7;
+  ctx.fillRect(drawX, drawY, drawWidth, drawHeight);
+  ctx.globalCompositeOperation = "lighter";
+  ctx.fillStyle = theme.secondary;
+  ctx.globalAlpha = alpha * 0.28;
+  ctx.fillRect(drawX + drawWidth * 0.18, drawY, drawWidth * 0.44, drawHeight);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.08 * Math.max(0.4, swapFade);
+  drawScanLines(drawX, drawY, drawWidth, drawHeight, 8);
+  ctx.strokeStyle = "rgba(255,255,255,0.08)";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(drawX - 6, drawY - 8, drawWidth + 12, drawHeight + 16);
+  const sweepY = drawY + ((state.frame * 2.4 + (20 - state.patientSwapTimer) * 8) % (drawHeight + 18)) - 9;
+  ctx.fillStyle = theme.glow;
+  ctx.fillRect(drawX - 4, sweepY, drawWidth + 8, 10);
+  for (let i = 0; i < 5; i += 1) {
+    const px = drawX + 12 + i * (drawWidth / 5) + Math.sin(state.frame * 0.04 + i) * 3;
+    const py = drawY + 12 + ((state.frame * 1.2 + i * 28) % (drawHeight - 18));
+    ctx.fillStyle = "rgba(255,255,255,0.06)";
+    ctx.fillRect(px, py, 2, 2);
+  }
+  ctx.restore();
+  return true;
+}
+
 function drawBriefingScreen() {
   const patient = getCurrentPatient();
   ctx.fillStyle = "rgba(6, 12, 18, 0.88)";
@@ -2685,6 +2772,9 @@ function drawInjectionScreen() {
   drawScanLines(0, 0, GAME.width, GAME.height, 8);
 
   const centerY = GAME.height / 2;
+  const shipX = 180 + t * 360;
+  const shipY = centerY + Math.sin(state.frame * 0.08) * 8;
+  const gatePulse = Math.max(0, (state.injectionTimer - 104) / 36);
   for (let i = 0; i < 18; i += 1) {
     const x = GAME.width - ((state.frame * (8 + i * 0.2) + i * 56) % (GAME.width + 120));
     ctx.strokeStyle = `rgba(142, 246, 255, ${0.08 + (i % 4) * 0.04})`;
@@ -2695,25 +2785,73 @@ function drawInjectionScreen() {
     ctx.stroke();
   }
 
+  ctx.strokeStyle = "rgba(142, 246, 255, 0.16)";
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 5; i += 1) {
+    ctx.beginPath();
+    ctx.ellipse(600, centerY, 150 + i * 36 + t * 80, 52 + i * 16, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  if (gatePulse > 0) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(0.72, gatePulse * 0.7);
+    ctx.strokeStyle = "rgba(255,255,255,0.95)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(710, centerY, 34 + gatePulse * 32, 80 + gatePulse * 26, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(142,246,255,0.86)";
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.ellipse(710, centerY, 18 + gatePulse * 20, 56 + gatePulse * 18, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = `rgba(255,255,255,${Math.min(0.2, gatePulse * 0.18)})`;
+    ctx.beginPath();
+    ctx.ellipse(710, centerY, 22 + gatePulse * 18, 60 + gatePulse * 18, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   ctx.save();
-  ctx.translate(180 + t * 390, centerY);
-  ctx.scale(1 + t * 0.18, 1 + t * 0.18);
-  ctx.fillStyle = "rgba(255,255,255,0.94)";
-  ctx.fillRect(-84, -12, 120, 24);
-  ctx.fillStyle = "#8ef6ff";
-  ctx.fillRect(28, -9, 72, 18);
-  ctx.fillStyle = "#dffcff";
-  ctx.fillRect(92, -3, 22, 6);
+  ctx.translate(shipX, shipY);
+  ctx.scale(0.78 + t * 0.1, 0.78 + t * 0.1);
+  ctx.rotate(Math.sin(state.frame * 0.04) * 0.02);
+  ctx.globalAlpha = 0.92;
+  if (!drawAsset("player", -46, -28, 92, 56)) {
+    ctx.fillStyle = "rgba(255,255,255,0.94)";
+    ctx.fillRect(-40, -10, 58, 20);
+    ctx.fillStyle = "#8ef6ff";
+    ctx.fillRect(10, -8, 54, 16);
+    ctx.fillStyle = "#dffcff";
+    ctx.fillRect(56, -3, 22, 6);
+  }
+  ctx.strokeStyle = "rgba(142, 246, 255, 0.36)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-56, -36, 112, 72);
   ctx.restore();
+
+  ctx.fillStyle = "rgba(142, 246, 255, 0.08)";
+  ctx.fillRect(shipX - 120, shipY - 2, 280, 4);
+  ctx.fillStyle = "rgba(255,255,255,0.08)";
+  for (let i = 0; i < 5; i += 1) {
+    ctx.fillRect(shipX - 90 - i * 20, shipY - 1, 12, 2);
+  }
 
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "bold 24px monospace";
   ctx.fillText("MICRO NURSE DEPLOYMENT", 248, 132);
   ctx.fillStyle = "#ffffff";
-  ctx.font = "18px monospace";
-  ctx.fillText("BIO CAPSULE READY", 360, 200);
-  ctx.fillText("INJECTION ROUTE : ORAL ENTRY", 314, 230);
-  ctx.fillText("ENTERING PATIENT BODY...", 328, 260);
+  ctx.font = "15px monospace";
+  ctx.fillText("BIO CAPSULE READY", 120, 194);
+  ctx.fillText("MICRO UNIT ACTIVE", 120, 220);
+  ctx.fillText("SIGNAL STABLE", 120, 246);
+  ctx.fillText("TARGET ENTRY : ORAL", 120, 272);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "14px monospace";
+  ctx.fillText(`CASE : ${getCurrentPatient().id.toUpperCase()}`, 610, 194);
+  ctx.fillText(`SUBJECT : ${getCurrentPatient().name.toUpperCase()}`, 610, 220);
+  ctx.fillText(`DIAGNOSIS : ${getCurrentPatient().diagnosis.toUpperCase()}`, 610, 246);
+  ctx.fillText("CAPSULE VECTOR LOCKED", 610, 272);
   ctx.fillStyle = "#fff5bf";
   ctx.fillText("TAP / ENTER TO SKIP", 372, 438);
 }
@@ -2787,6 +2925,7 @@ function drawBriefingEffects() {
 
 function drawPatientSelectEffects() {
   const theme = getCurrentPatientTheme();
+  const swapAlpha = state.patientSwapTimer > 0 ? state.patientSwapTimer / 20 : 0;
   for (let i = 0; i < 24; i += 1) {
     const x = (i * 47 - state.frame * 0.85) % (GAME.width + 40);
     const y = 34 + (i * 23) % 470;
@@ -2808,6 +2947,13 @@ function drawPatientSelectEffects() {
     ctx.fillStyle = theme.secondary;
     ctx.fillRect(118, 92, 12, 3);
   }
+  if (swapAlpha > 0) {
+    ctx.fillStyle = `rgba(255,255,255,${swapAlpha * 0.08})`;
+    for (let i = 0; i < 7; i += 1) {
+      const y = 70 + i * 58 + ((state.frame * 5 + i * 11) % 18);
+      ctx.fillRect(72, y, 816, 2);
+    }
+  }
 }
 
 function drawInjectionEffects() {
@@ -2817,6 +2963,12 @@ function drawInjectionEffects() {
   ctx.fillRect(0, GAME.height - 18, GAME.width, 18);
   ctx.fillStyle = "rgba(255,255,255,0.12)";
   ctx.fillRect(0, GAME.height / 2 - 2, GAME.width, 4);
+  for (let i = 0; i < 12; i += 1) {
+    const x = GAME.width - ((state.frame * (5.5 + i * 0.12) + i * 82) % (GAME.width + 80));
+    const y = 126 + i * 22;
+    ctx.fillStyle = "rgba(142, 246, 255, 0.1)";
+    ctx.fillRect(x, y, 26, 2);
+  }
 }
 
 function drawResultEffects() {
@@ -3001,6 +3153,7 @@ function beginPlaying() {
   state.injectionTimer = 0;
   setPatientBgm("normal");
   state.screenFlashTimer = 6;
+  state.stageEntryFlashTimer = 20;
 }
 
 function returnToTitle() {
@@ -3090,9 +3243,9 @@ function touchRegions(point) {
 
 function patientSelectRegions(point) {
   return {
-    left: point.x >= 24 && point.x <= 64 && point.y >= 424 && point.y <= 464,
-    right: point.x >= 896 && point.x <= 936 && point.y >= 424 && point.y <= 464,
-    start: point.x >= 874 && point.x <= 926 && point.y >= 470 && point.y <= 510,
+    left: point.x >= 16 && point.x <= 80 && point.y >= 412 && point.y <= 476,
+    right: point.x >= 888 && point.x <= 952 && point.y >= 412 && point.y <= 476,
+    start: point.x >= 442 && point.x <= 526 && point.y >= 462 && point.y <= 522,
     leftPane: point.x < GAME.width * 0.5,
     rightPane: point.x >= GAME.width * 0.5,
   };
