@@ -1,4 +1,4 @@
-const GAME = {
+﻿const GAME = {
   width: 960,
   height: 540,
   scrollSpeed: 2.2,
@@ -21,6 +21,82 @@ const MAX_UPDATES_PER_FRAME = 5;
 
 const POWER_ORDER = ["SPEED", "NEEDLE", "CAPSULE", "SPRAY", "SHIELD", "HELPER"];
 
+const PATIENTS = [
+  {
+    id: "Patient 01",
+    name: "Takahashi Mina",
+    age: "17",
+    shortDescription: "Virus infection causing cough and fever.",
+    symptoms: ["High fever", "Cough", "Sore throat"],
+    diagnosis: "Common cold virus infection",
+    mission: "Eliminate the infection source",
+    threat: "COUGH / INFLAMMATION",
+    difficulty: "NORMAL",
+    unlocked: true,
+    selectTheme: {
+      accent: "#8ef6ff",
+      secondary: "#ff6f8f",
+      glow: "rgba(142, 246, 255, 0.28)",
+    },
+    result: {
+      removal: "92%",
+      inflammation: "Success",
+      status: "Recovered",
+    },
+    learningSummary: [
+      "Throat pain can be a sign of inflammation",
+      "Stomach acid helps digestion and sterilization",
+      "The small intestine absorbs nutrients",
+      "Immunity helps protect the body from viruses",
+    ],
+    areaDuration: 720,
+    bgmTheme: "cold",
+    stageModifier: {
+      areaDurationByArea: {
+        stomach: 720,
+      },
+      stomachAcidDamageInterval: 18,
+      stomachTintBoost: 0,
+    },
+  },
+  {
+    id: "Patient 02",
+    name: "Sato Aoi",
+    age: "22",
+    shortDescription: "Digestive trouble centered around the stomach.",
+    symptoms: ["Abdominal pain", "Nausea", "Stomach discomfort"],
+    diagnosis: "Food poisoning stomach trouble",
+    mission: "Remove stomach abnormalities",
+    threat: "ACID / TOXIN",
+    difficulty: "HARD",
+    unlocked: true,
+    selectTheme: {
+      accent: "#ffe36f",
+      secondary: "#a6ff8e",
+      glow: "rgba(255, 227, 111, 0.26)",
+    },
+    result: {
+      removal: "88%",
+      inflammation: "Improving",
+      status: "Observation",
+    },
+    learningSummary: [
+      "Food poisoning can inflame the stomach and intestines",
+      "Stomach acid protects the body but is dangerous in-mission",
+      "Digestion organs work together to defend the body",
+      "Hydration and pain monitoring are also important",
+    ],
+    areaDuration: 720,
+    bgmTheme: "foodpoisoning",
+    stageModifier: {
+      areaDurationByArea: {
+        stomach: 980,
+      },
+      stomachAcidDamageInterval: 14,
+      stomachTintBoost: 0.18,
+    },
+  },
+];
 const ASSET_PATHS = {
   player: "assets/player_nurse.png",
   helper: "assets/helper_white_blood_cell.png",
@@ -36,8 +112,8 @@ const ASSET_PATHS = {
 const AREAS = [
   {
     id: "mouth",
-    name: "口内",
-    note: "口の中には多くの細菌がいます。歯みがきやうがいで清潔を保つことが大切です。",
+    name: "Mouth",
+    note: "The mouth contains many bacteria. Keeping it clean helps protect the body.",
     colorA: "#7d233d",
     colorB: "#ff8ea6",
     accent: "#ffe2ea",
@@ -46,8 +122,8 @@ const AREAS = [
   },
   {
     id: "throat",
-    name: "喉",
-    note: "喉の痛みは、ウイルスなどに対して体が炎症反応を起こしているサインです。",
+    name: "Throat",
+    note: "Throat pain can be a sign that the body is reacting to viruses.",
     colorA: "#8f2f3b",
     colorB: "#d45666",
     accent: "#ffcccf",
@@ -56,8 +132,8 @@ const AREAS = [
   },
   {
     id: "esophagus",
-    name: "食道",
-    note: "食道は食べ物を胃へ送る通り道です。筋肉の動きで食べ物を運びます。",
+    name: "Esophagus",
+    note: "The esophagus moves food toward the stomach using muscle motion.",
     colorA: "#5a274d",
     colorB: "#ad6a87",
     accent: "#ffd5dd",
@@ -66,8 +142,8 @@ const AREAS = [
   },
   {
     id: "stomach",
-    name: "胃",
-    note: "胃酸は食べ物の消化や細菌を減らす働きがあります。ただし体内ミッション中のナースには危険です。",
+    name: "Stomach",
+    note: "Stomach acid helps digest food and reduce bacteria, but it is dangerous in-mission.",
     colorA: "#543824",
     colorB: "#cf8a49",
     accent: "#ffe4ad",
@@ -76,8 +152,8 @@ const AREAS = [
   },
   {
     id: "intestine",
-    name: "小腸",
-    note: "小腸では栄養が吸収されます。体に必要な栄養を取り込む大切な場所です。",
+    name: "Small Intestine",
+    note: "The small intestine absorbs nutrients and supports the body.",
     colorA: "#6a3b1f",
     colorB: "#c96b40",
     accent: "#ffe0ba",
@@ -86,8 +162,8 @@ const AREAS = [
   },
   {
     id: "nest",
-    name: "感染源エリア",
-    note: "ウイルスは体内で増えることがあります。体は免疫の働きでそれに対抗します。",
+    name: "Infection Nest",
+    note: "Viruses can gather and spread. The immune system fights back.",
     colorA: "#431047",
     colorB: "#b53f6b",
     accent: "#ffd0ef",
@@ -105,6 +181,7 @@ const state = {
   frame: 0,
   score: 0,
   highScore: 0,
+  currentPatientIndex: 0,
   areaIndex: 0,
   areaFrame: 0,
   noteTimer: 0,
@@ -128,12 +205,8 @@ const state = {
   currentBgm: "normal",
   bossHpLag: 0,
   bossDamageFlashTimer: 0,
-  learningSummary: [
-    "喉の痛みは炎症反応のサイン",
-    "胃酸は消化と殺菌に役立つ",
-    "小腸では栄養が吸収される",
-    "免疫はウイルスなどから体を守る",
-  ],
+  injectionTimer: 0,
+  learningSummary: [],
   player: null,
   helper: null,
   boss: null,
@@ -209,8 +282,8 @@ function drawAsset(key, x, y, w, h) {
   return true;
 }
 
-function resetGame() {
-  state.scene = "playing";
+function resetGame(startScene = "playing") {
+  state.scene = startScene;
   state.frame = 0;
   state.score = 0;
   state.areaIndex = 0;
@@ -236,6 +309,8 @@ function resetGame() {
   state.currentBgm = "normal";
   state.bossHpLag = GAME.bossMaxHp;
   state.bossDamageFlashTimer = 0;
+  state.injectionTimer = 0;
+  state.learningSummary = [...getCurrentPatient().learningSummary];
   state.player = makePlayer();
   state.helper = null;
   state.boss = null;
@@ -267,6 +342,43 @@ function getCurrentArea() {
   return AREAS[Math.min(state.areaIndex, AREAS.length - 1)];
 }
 
+function getCurrentPatient() {
+  return PATIENTS[state.currentPatientIndex] || PATIENTS[0];
+}
+
+function getStageModifier() {
+  return getCurrentPatient().stageModifier || {};
+}
+
+function getCurrentPatientTheme() {
+  return getCurrentPatient().selectTheme || {
+    accent: "#8ef6ff",
+    secondary: "#ff6f8f",
+    glow: "rgba(142, 246, 255, 0.28)",
+  };
+}
+
+function getCurrentAreaDuration() {
+  const patient = getCurrentPatient();
+  const modifier = getStageModifier();
+  return modifier.areaDurationByArea?.[getCurrentArea().id] ?? patient.areaDuration ?? GAME.areaDuration;
+}
+
+function setPatientBgm(mode) {
+  state.currentBgm = `${getCurrentPatient().bgmTheme}:${mode}`;
+}
+
+function changePatientSelection(direction) {
+  if (!PATIENTS.length) return;
+  let next = state.currentPatientIndex;
+  do {
+    next = (next + direction + PATIENTS.length) % PATIENTS.length;
+  } while (!PATIENTS[next].unlocked && next !== state.currentPatientIndex);
+  state.currentPatientIndex = next;
+  state.learningSummary = [...getCurrentPatient().learningSummary];
+  state.uiNoiseTimer = 6;
+}
+
 function getAreaLabel() {
   return `AREA ${state.areaIndex + 1}: ${getCurrentArea().name}`;
 }
@@ -281,8 +393,22 @@ function update() {
   if (state.scene === "title") {
     return;
   }
-  if (state.scene === "gameover" || state.scene === "clear") {
+  if (state.scene === "patientSelect") {
+    state.uiNoiseTimer = Math.max(0, state.uiNoiseTimer - 1);
+    return;
+  }
+  if (state.scene === "briefing") {
+    state.uiNoiseTimer = Math.max(0, state.uiNoiseTimer - 1);
+    return;
+  }
+  if (state.scene === "injection") {
+    updateInjectionScene();
+    return;
+  }
+  if (state.scene === "gameover" || state.scene === "clear" || state.scene === "result") {
     state.gameOverTimer += 1;
+    state.uiNoiseTimer = Math.max(0, state.uiNoiseTimer - 1);
+    state.screenFlashTimer = Math.max(0, state.screenFlashTimer - 1);
     return;
   }
 
@@ -321,6 +447,24 @@ function update() {
   cleanupEntities();
 }
 
+function updateInjectionScene() {
+  state.injectionTimer += 1;
+  state.screenFlashTimer = Math.max(0, state.screenFlashTimer - 1);
+  state.cameraShake = Math.max(0, state.cameraShake - 0.3);
+  state.cameraDriftX += (2.2 - state.cameraDriftX) * 0.1;
+  state.uiNoiseTimer = Math.max(0, state.uiNoiseTimer - 1);
+  if (state.injectionTimer === 1) {
+    setPatientBgm("warning");
+  }
+  if (state.injectionTimer === 24) {
+    state.screenFlashTimer = 8;
+    state.uiNoiseTimer = 8;
+  }
+  if (state.injectionTimer >= 150) {
+    beginPlaying();
+  }
+}
+
 function triggerHitStop(frames) {
   state.hitStopTimer = Math.max(state.hitStopTimer, frames);
 }
@@ -343,7 +487,7 @@ function updateStageProgress() {
   spawnAreaEnemies(area);
   spawnAreaHazards(area);
 
-  if (state.areaFrame >= GAME.areaDuration) {
+  if (state.areaFrame >= getCurrentAreaDuration()) {
     state.areaFrame = 0;
     state.areaIndex += 1;
     if (state.areaIndex >= AREAS.length) {
@@ -358,7 +502,7 @@ function updateStageProgress() {
 function startBossWarning() {
   state.bossSpawnQueued = true;
   state.bossWarningTimer = 96;
-  state.currentBgm = "warning";
+  setPatientBgm("warning");
   state.areaIndex = AREAS.length - 1;
   state.areaBannerTimer = 0;
   state.noteTimer = 0;
@@ -368,7 +512,7 @@ function startBossWarning() {
 function spawnBoss() {
   state.bossSpawnQueued = false;
   state.bossActive = true;
-  state.currentBgm = "boss";
+  setPatientBgm("boss");
   state.areaIndex = AREAS.length - 1;
   state.areaBannerTimer = 240;
   state.noteTimer = 200;
@@ -686,11 +830,12 @@ function updateBoss() {
     state.boss = null;
     state.bossActive = false;
     state.bossDefeated = true;
-    state.currentBgm = "clear";
+    setPatientBgm("clear");
     state.cameraShake = 18;
     state.screenFlashTimer = 18;
     triggerHitStop(8);
-    state.scene = "clear";
+    state.scene = "result";
+    state.gameOverTimer = 0;
   }
 }
 
@@ -714,6 +859,7 @@ function updateCapsules() {
 
 function updateHazards() {
   const area = getCurrentArea();
+  const stomachAcidDamageInterval = getStageModifier().stomachAcidDamageInterval ?? 18;
   for (const hazard of state.hazards) {
     hazard.life -= 1;
     hazard.x += hazard.vx;
@@ -725,7 +871,7 @@ function updateHazards() {
 
   if (area.id === "stomach") {
     const acidTop = GAME.height - 58 - (Math.sin(state.frame * 0.06) * 10 + 14);
-    if (state.player.y + state.player.h / 2 > acidTop && state.frame % 18 === 0) {
+    if (state.player.y + state.player.h / 2 > acidTop && state.frame % stomachAcidDamageInterval === 0) {
       damagePlayer();
     }
   }
@@ -1105,7 +1251,8 @@ function drawAreaParallaxFront(area) {
 }
 
 function drawStomachForegroundVeil() {
-  ctx.fillStyle = "rgba(255, 236, 178, 0.1)";
+  const tintBoost = getStageModifier().stomachTintBoost ?? 0;
+  ctx.fillStyle = `rgba(255, 236, 178, ${0.1 + tintBoost * 0.16})`;
   ctx.beginPath();
   ctx.moveTo(0, GAME.height);
   for (let x = 0; x <= GAME.width; x += 24) {
@@ -1114,7 +1261,7 @@ function drawStomachForegroundVeil() {
   }
   ctx.lineTo(GAME.width, GAME.height);
   ctx.fill();
-  ctx.fillStyle = "rgba(255, 250, 220, 0.05)";
+  ctx.fillStyle = `rgba(255, 250, 220, ${0.05 + tintBoost * 0.12})`;
   ctx.beginPath();
   ctx.moveTo(0, GAME.height);
   for (let x = 0; x <= GAME.width; x += 20) {
@@ -1210,12 +1357,13 @@ function drawEsophagusBackground(area) {
 }
 
 function drawStomachBackground(area) {
-  ctx.fillStyle = "rgba(255, 204, 139, 0.12)";
+  const tintBoost = getStageModifier().stomachTintBoost ?? 0;
+  ctx.fillStyle = `rgba(255, 204, 139, ${0.12 + tintBoost * 0.25})`;
   ctx.beginPath();
   ctx.ellipse(500, 250, 330, 180, 0.08, 0, Math.PI * 2);
   ctx.fill();
   const acidY = GAME.height - 54 - (Math.sin(state.frame * 0.06) * 10 + 14);
-  ctx.fillStyle = "rgba(229, 230, 110, 0.72)";
+  ctx.fillStyle = `rgba(229, 230, 110, ${0.72 + tintBoost * 0.18})`;
   ctx.beginPath();
   ctx.moveTo(0, GAME.height);
   for (let x = 0; x <= GAME.width; x += 22) {
@@ -1223,7 +1371,7 @@ function drawStomachBackground(area) {
   }
   ctx.lineTo(GAME.width, GAME.height);
   ctx.fill();
-  ctx.strokeStyle = "rgba(255, 255, 180, 0.9)";
+  ctx.strokeStyle = `rgba(255, 255, 180, ${0.9 + tintBoost * 0.05})`;
   ctx.lineWidth = 4;
   ctx.beginPath();
   for (let x = 0; x <= GAME.width; x += 22) {
@@ -1384,8 +1532,9 @@ function drawHazards() {
 }
 
 function drawAcidHazardZone() {
+  const tintBoost = getStageModifier().stomachTintBoost ?? 0;
   const acidY = GAME.height - 54 - (Math.sin(state.frame * 0.06) * 10 + 14);
-  ctx.fillStyle = "rgba(219, 255, 82, 0.34)";
+  ctx.fillStyle = `rgba(219, 255, 82, ${0.34 + tintBoost * 0.24})`;
   ctx.beginPath();
   ctx.moveTo(0, GAME.height);
   for (let x = 0; x <= GAME.width; x += 18) {
@@ -1393,7 +1542,7 @@ function drawAcidHazardZone() {
   }
   ctx.lineTo(GAME.width, GAME.height);
   ctx.fill();
-  ctx.strokeStyle = "rgba(255, 246, 130, 0.98)";
+  ctx.strokeStyle = `rgba(255, 246, 130, ${0.98 + tintBoost * 0.02})`;
   ctx.lineWidth = 5;
   ctx.beginPath();
   for (let x = 0; x <= GAME.width; x += 18) {
@@ -1961,6 +2110,22 @@ function drawUi() {
     drawTitleScreen();
     return;
   }
+  if (state.scene === "patientSelect") {
+    drawPatientSelectScreen();
+    return;
+  }
+  if (state.scene === "briefing") {
+    drawBriefingScreen();
+    return;
+  }
+  if (state.scene === "injection") {
+    drawInjectionScreen();
+    return;
+  }
+  if (state.scene === "result") {
+    drawMissionResultScreen();
+    return;
+  }
 
   drawMonitorPanel(12, 10, GAME.width - 24, 42);
   drawStatPanel(20, 14, 154, 26, "SCORE", String(state.score).padStart(6, "0"));
@@ -2114,6 +2279,22 @@ function drawOverlays() {
     drawTitleEffects();
     return;
   }
+  if (state.scene === "patientSelect") {
+    drawPatientSelectEffects();
+    return;
+  }
+  if (state.scene === "briefing") {
+    drawBriefingEffects();
+    return;
+  }
+  if (state.scene === "injection") {
+    drawInjectionEffects();
+    return;
+  }
+  if (state.scene === "result") {
+    drawResultEffects();
+    return;
+  }
 
   if (state.areaBannerTimer > 0) {
     const label = getAreaLabel();
@@ -2136,7 +2317,7 @@ function drawOverlays() {
     ctx.fillStyle = "rgba(10, 14, 20, 0.72)";
     ctx.fillRect(40, 52, GAME.width - 80, 54);
     ctx.fillStyle = "#fff5bf";
-    drawWrappedText(`学習メモ: ${getCurrentArea().note}`, 54, 74, GAME.width - 108, 16, 15);
+    drawWrappedText(`MEDICAL NOTE: ${getCurrentArea().note}`, 54, 74, GAME.width - 108, 16, 15);
   }
 
   if (state.powerUpNoticeTimer > 0) {
@@ -2189,7 +2370,7 @@ function drawOverlays() {
   }
 
   if (state.scene === "gameover") {
-    drawResultOverlay("GAME OVER", "患者の体内ミッション失敗", "SPACE / ENTER / TAP で RESTART");
+    drawResultOverlay("GAME OVER", "Patient treatment was interrupted.", "SPACE / ENTER / TAP TO RESTART");
   }
   if (state.scene === "clear") {
     drawClearOverlay();
@@ -2241,16 +2422,334 @@ function drawTitleScreen() {
   ctx.strokeRect(92, 58, 776, 420);
   ctx.fillStyle = "#493a31";
   ctx.font = "bold 40px sans-serif";
-  ctx.fillText("ミクロナース・レスキュー", 190, 116);
+  ctx.fillText("MICRO NURSE RESCUE", 190, 116);
   ctx.font = "18px sans-serif";
-  ctx.fillText("患者No.001", 134, 162);
-  ctx.fillText("症状: 喉の痛み、発熱、だるさ", 134, 196);
-  ctx.fillText("推定原因: 風邪ウイルス", 134, 230);
-  ctx.fillText("任務: 体内へ侵入し、感染源を除去せよ", 134, 264);
-  ctx.fillText("ルート: 口内 → 喉 → 食道 → 胃 → 小腸 → 感染源エリア → ボス", 134, 298);
+  ctx.fillText("Patient No.001", 134, 162);
+  ctx.fillText("Symptoms: High fever, cough, sore throat", 134, 196);
+  ctx.fillText("Cause: Common cold virus", 134, 230);
+  ctx.fillText("Mission: Enter the body and remove the infection source", 134, 264);
+  ctx.fillText("Route: Mouth / Throat / Esophagus / Stomach / Intestine / Infection Nest / Boss", 134, 298);
   ctx.fillStyle = "#5a4f46";
-  ctx.fillText("PC: 矢印キー / WASD  移動   Space  ショット   Shift  ボム", 134, 350);
-  ctx.fillText("スマホ: 左下スティック   右下 SHOT / BOMB", 134, 382);
+  ctx.fillText("PC: Arrow Keys / WASD   Space: Shot   Shift: Bomb", 134, 350);
+  ctx.fillText("Mobile: Virtual stick   SHOT / BOMB", 134, 382);
+}
+
+function drawPatientSelectScreen() {
+  const patient = getCurrentPatient();
+  const theme = getCurrentPatientTheme();
+  ctx.fillStyle = "rgba(6, 12, 18, 0.9)";
+  ctx.fillRect(58, 38, 844, 468);
+  ctx.strokeStyle = "rgba(120, 236, 255, 0.28)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(58, 38, 844, 468);
+  drawScanLines(64, 44, 832, 456, 7);
+
+  drawMonitorPanel(88, 68, 784, 42);
+  ctx.fillStyle = "#dffcff";
+  ctx.font = "bold 26px monospace";
+  ctx.fillText("CASE SELECT", 110, 98);
+  drawHudDigits(700, 95, "CASE FILE");
+
+  PATIENTS.forEach((entry, index) => {
+    const isSelected = index === state.currentPatientIndex;
+    const cardX = 96 + index * 372;
+    const cardY = 132;
+    const cardW = 340;
+    const cardH = 240;
+    const entryTheme = entry.selectTheme || theme;
+    ctx.fillStyle = isSelected ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.025)";
+    ctx.fillRect(cardX, cardY, cardW, cardH);
+    ctx.strokeStyle = isSelected ? entryTheme.accent : "rgba(255,255,255,0.16)";
+    ctx.lineWidth = isSelected ? 3 : 1.5;
+    ctx.strokeRect(cardX, cardY, cardW, cardH);
+    if (isSelected) {
+      ctx.fillStyle = entryTheme.glow;
+      ctx.fillRect(cardX + 8, cardY + 8, cardW - 16, 14);
+      drawScanLines(cardX + 6, cardY + 6, cardW - 12, cardH - 12, 9);
+    }
+
+    ctx.fillStyle = isSelected ? "#ffffff" : "#b2bfcc";
+    ctx.font = "bold 20px monospace";
+    ctx.fillText(`CASE ${String(index + 1).padStart(2, "0")}`, cardX + 18, cardY + 34);
+    ctx.font = "bold 24px sans-serif";
+    ctx.fillText(entry.name, cardX + 18, cardY + 72);
+    ctx.fillStyle = isSelected ? entryTheme.accent : "#93a8bb";
+    ctx.font = "bold 18px monospace";
+    ctx.fillText(entry.diagnosis.toUpperCase(), cardX + 18, cardY + 104);
+    ctx.fillStyle = isSelected ? "#dffcff" : "#9baaba";
+    ctx.font = "16px sans-serif";
+    drawWrappedText(entry.shortDescription, cardX + 18, cardY + 136, cardW - 36, 20, 16);
+    ctx.fillStyle = entryTheme.secondary;
+    ctx.font = "12px monospace";
+    ctx.fillText(`THREAT: ${entry.threat}`, cardX + 18, cardY + 182);
+    ctx.fillText(`DIFFICULTY: ${entry.difficulty}`, cardX + 18, cardY + 206);
+    ctx.fillText(`AGE: ${entry.age}`, cardX + 18, cardY + 228);
+    if (!entry.unlocked) {
+      ctx.fillStyle = "rgba(0,0,0,0.58)";
+      ctx.fillRect(cardX, cardY, cardW, cardH);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 28px monospace";
+      ctx.fillText("LOCKED", cardX + 110, cardY + 134);
+    } else if (isSelected && Math.floor(state.frame / 18) % 2 === 0) {
+      ctx.fillStyle = entryTheme.accent;
+      ctx.fillRect(cardX - 12, cardY + 16, 8, 36);
+    }
+  });
+
+  drawMonitorPanel(96, 394, 712, 74);
+  ctx.fillStyle = theme.accent;
+  ctx.font = "bold 14px monospace";
+  ctx.fillText(`NAME: ${patient.name.toUpperCase()}    AGE: ${patient.age}`, 118, 420);
+  ctx.fillText(`THREAT: ${patient.threat}    UNLOCKED: ${patient.unlocked ? "YES" : "NO"}`, 118, 446);
+  ctx.fillStyle = "#fff5bf";
+  ctx.font = "bold 22px monospace";
+  ctx.fillText("LEFT / RIGHT TO CHANGE   ENTER / TAP TO BRIEFING", 116, 492);
+
+  drawSelectArrowButton(74, 424, "<", theme, false);
+  drawSelectArrowButton(842, 424, ">", theme, false);
+  drawSelectArrowButton(872, 424, "OK", theme, true);
+}
+
+function drawSelectArrowButton(x, y, label, theme, wide) {
+  const w = wide ? 52 : 40;
+  const h = 40;
+  ctx.fillStyle = "rgba(8, 16, 24, 0.86)";
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = theme.accent;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, w, h);
+  ctx.fillStyle = theme.accent;
+  ctx.font = wide ? "bold 18px monospace" : "bold 22px monospace";
+  ctx.fillText(label, x + (wide ? 13 : 12), y + 26);
+}
+
+function drawBriefingScreen() {
+  const patient = getCurrentPatient();
+  ctx.fillStyle = "rgba(6, 12, 18, 0.88)";
+  ctx.fillRect(76, 44, 808, 452);
+  ctx.strokeStyle = "rgba(120, 236, 255, 0.34)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(76, 44, 808, 452);
+  drawScanLines(82, 50, 796, 440, 7);
+
+  drawMonitorPanel(102, 72, 756, 42);
+  ctx.fillStyle = "#dffcff";
+  ctx.font = "bold 24px monospace";
+  ctx.fillText("PATIENT DATA", 122, 100);
+  drawHudDigits(680, 97, patient.id.toUpperCase());
+
+  drawMonitorPanel(104, 132, 306, 254);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "12px monospace";
+  ctx.fillText("NAME", 126, 160);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 22px sans-serif";
+  ctx.fillText(patient.name, 126, 188);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "12px monospace";
+  ctx.fillText("AGE", 126, 222);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 20px monospace";
+  ctx.fillText(patient.age, 126, 248);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "12px monospace";
+  ctx.fillText("SYMPTOMS", 126, 286);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "18px sans-serif";
+  patient.symptoms.forEach((line, index) => {
+    ctx.fillText(`- ${line}`, 126, 316 + index * 28);
+  });
+
+  drawMonitorPanel(430, 132, 428, 160);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "12px monospace";
+  ctx.fillText("DIAGNOSIS", 452, 162);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 28px sans-serif";
+  ctx.fillText(patient.diagnosis, 452, 204);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "12px monospace";
+  ctx.fillText("MISSION", 452, 244);
+  ctx.fillStyle = "#fff4bf";
+  ctx.font = "bold 24px sans-serif";
+  ctx.fillText(patient.mission, 452, 278);
+
+  drawMonitorPanel(430, 310, 428, 76);
+  drawEcgLine(444, 324, 192, 24);
+  ctx.fillStyle = "#dffcff";
+  ctx.font = "13px monospace";
+  ctx.fillText("BIO STATUS : FEVER / COUGH / THROAT INFLAMMATION", 448, 368);
+
+  if (Math.floor(state.frame / 24) % 2 === 0) {
+    ctx.fillStyle = "#fff5bf";
+    ctx.font = "bold 22px monospace";
+    ctx.fillText("PRESS SPACE / ENTER / TAP TO DEPLOY", 216, 446);
+  }
+}
+
+function drawInjectionScreen() {
+  const t = Math.min(1, state.injectionTimer / 150);
+  ctx.fillStyle = "rgba(6, 12, 18, 0.92)";
+  ctx.fillRect(0, 0, GAME.width, GAME.height);
+  drawScanLines(0, 0, GAME.width, GAME.height, 8);
+
+  const centerY = GAME.height / 2;
+  for (let i = 0; i < 18; i += 1) {
+    const x = GAME.width - ((state.frame * (8 + i * 0.2) + i * 56) % (GAME.width + 120));
+    ctx.strokeStyle = `rgba(142, 246, 255, ${0.08 + (i % 4) * 0.04})`;
+    ctx.lineWidth = 2 + (i % 3);
+    ctx.beginPath();
+    ctx.moveTo(x, centerY - 88 + i * 10);
+    ctx.lineTo(x + 64, centerY - 88 + i * 10);
+    ctx.stroke();
+  }
+
+  ctx.save();
+  ctx.translate(180 + t * 390, centerY);
+  ctx.scale(1 + t * 0.18, 1 + t * 0.18);
+  ctx.fillStyle = "rgba(255,255,255,0.94)";
+  ctx.fillRect(-84, -12, 120, 24);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.fillRect(28, -9, 72, 18);
+  ctx.fillStyle = "#dffcff";
+  ctx.fillRect(92, -3, 22, 6);
+  ctx.restore();
+
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "bold 24px monospace";
+  ctx.fillText("MICRO NURSE DEPLOYMENT", 248, 132);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "18px monospace";
+  ctx.fillText("BIO CAPSULE READY", 360, 200);
+  ctx.fillText("INJECTION ROUTE : ORAL ENTRY", 314, 230);
+  ctx.fillText("ENTERING PATIENT BODY...", 328, 260);
+  ctx.fillStyle = "#fff5bf";
+  ctx.fillText("TAP / ENTER TO SKIP", 372, 438);
+}
+
+function drawMissionResultScreen() {
+  const patient = getCurrentPatient();
+  ctx.fillStyle = "rgba(6, 12, 18, 0.9)";
+  ctx.fillRect(86, 52, 788, 436);
+  ctx.strokeStyle = "rgba(120, 236, 255, 0.34)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(86, 52, 788, 436);
+  drawScanLines(92, 58, 776, 424, 7);
+
+  drawMonitorPanel(114, 78, 732, 42);
+  ctx.fillStyle = "#dffcff";
+  ctx.font = "bold 28px monospace";
+  ctx.fillText("RESULT", 136, 108);
+  drawHudDigits(664, 104, "MISSION COMPLETE");
+
+  drawMonitorPanel(116, 142, 350, 218);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "12px monospace";
+  ctx.fillText("REMOVAL RATE", 138, 172);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 44px monospace";
+  ctx.fillText(patient.result.removal, 138, 224);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "12px monospace";
+  ctx.fillText("INFLAMMATION CONTROL", 138, 266);
+  ctx.fillStyle = "#dffcff";
+  ctx.font = "bold 26px sans-serif";
+  ctx.fillText(patient.result.inflammation, 138, 302);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "12px monospace";
+  ctx.fillText("PATIENT STATUS", 138, 334);
+  ctx.fillStyle = "#fff5bf";
+  ctx.font = "bold 28px sans-serif";
+  ctx.fillText(patient.result.status, 138, 370);
+
+  drawMonitorPanel(488, 142, 358, 218);
+  drawEcgLine(506, 160, 216, 26);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "12px monospace";
+  ctx.fillText("MISSION SUMMARY", 510, 214);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "18px sans-serif";
+  ctx.fillText("Source removed and patient status stabilized.", 510, 250);
+  ctx.fillText("Throat inflammation has begun to settle.", 510, 282);
+  ctx.fillText("Continue observation, outlook is positive.", 510, 314);
+
+  if (Math.floor(state.frame / 24) % 2 === 0) {
+    ctx.fillStyle = "#fff5bf";
+    ctx.font = "bold 22px monospace";
+    ctx.fillText("PRESS SPACE / ENTER / TAP TO RETURN", 198, 438);
+  }
+}
+
+function drawBriefingEffects() {
+  for (let i = 0; i < 18; i += 1) {
+    const x = (i * 61 - state.frame * 0.8) % (GAME.width + 40);
+    const y = 30 + (i * 31) % 460;
+    ctx.fillStyle = "rgba(142, 246, 255, 0.08)";
+    ctx.fillRect(x, y, 2, 2);
+  }
+  drawEcgPulseStrip(96, 468, 768, 18);
+  if (Math.floor(state.frame / 18) % 2 === 0) {
+    ctx.fillStyle = "rgba(142, 246, 255, 0.8)";
+    ctx.fillRect(694, 96, 10, 3);
+  }
+}
+
+function drawPatientSelectEffects() {
+  const theme = getCurrentPatientTheme();
+  for (let i = 0; i < 24; i += 1) {
+    const x = (i * 47 - state.frame * 0.85) % (GAME.width + 40);
+    const y = 34 + (i * 23) % 470;
+    ctx.fillStyle = i % 3 === 0 ? theme.glow : "rgba(255,255,255,0.06)";
+    ctx.fillRect(x, y, 2, 2);
+  }
+  ctx.strokeStyle = theme.accent;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(94, 514);
+  ctx.lineTo(210, 514);
+  ctx.lineTo(226, 508);
+  ctx.lineTo(236, 520);
+  ctx.lineTo(250, 496);
+  ctx.lineTo(264, 514);
+  ctx.lineTo(866, 514);
+  ctx.stroke();
+  if (Math.floor(state.frame / 20) % 2 === 0) {
+    ctx.fillStyle = theme.secondary;
+    ctx.fillRect(118, 92, 12, 3);
+  }
+}
+
+function drawInjectionEffects() {
+  const alpha = 0.16 + Math.sin(state.frame * 0.24) * 0.08;
+  ctx.fillStyle = `rgba(255, 92, 124, ${Math.max(0.08, alpha)})`;
+  ctx.fillRect(0, 0, GAME.width, 18);
+  ctx.fillRect(0, GAME.height - 18, GAME.width, 18);
+  ctx.fillStyle = "rgba(255,255,255,0.12)";
+  ctx.fillRect(0, GAME.height / 2 - 2, GAME.width, 4);
+}
+
+function drawResultEffects() {
+  for (let i = 0; i < 16; i += 1) {
+    const x = (i * 73 - state.frame * 0.65) % (GAME.width + 40);
+    const y = 44 + (i * 34) % 430;
+    ctx.fillStyle = "rgba(142, 246, 255, 0.08)";
+    ctx.fillRect(x, y, 2, 2);
+  }
+  drawEcgPulseStrip(110, 382, 736, 18);
+}
+
+function drawEcgPulseStrip(x, y, w, h) {
+  ctx.strokeStyle = "rgba(142, 246, 255, 0.48)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x, y + h / 2);
+  ctx.lineTo(x + 130, y + h / 2);
+  ctx.lineTo(x + 154, y + h / 2 - 5);
+  ctx.lineTo(x + 166, y + h / 2 + 8);
+  ctx.lineTo(x + 182, y + h / 2 - 13);
+  ctx.lineTo(x + 198, y + h / 2);
+  ctx.lineTo(x + w, y + h / 2);
+  ctx.stroke();
 }
 
 function drawResultOverlay(title, subtitle, footer) {
@@ -2273,17 +2772,17 @@ function drawClearOverlay() {
   ctx.strokeRect(120, 68, 720, 404);
   ctx.fillStyle = "#493a31";
   ctx.font = "bold 40px sans-serif";
-  ctx.fillText("処置完了", 390, 126);
+  ctx.fillText("TREATMENT COMPLETE", 248, 126);
   ctx.font = "22px sans-serif";
-  ctx.fillText("原因: 風邪ウイルスの増殖", 284, 176);
-  ctx.fillText("回復見込み: 良好", 352, 212);
-  ctx.fillText("学習メモ", 426, 256);
+  ctx.fillText("Cause: Common cold virus overgrowth", 248, 176);
+  ctx.fillText("Prognosis: Good", 352, 212);
+  ctx.fillText("Learning Summary", 356, 256);
   ctx.font = "18px sans-serif";
   state.learningSummary.forEach((line, index) => {
-    ctx.fillText(`・${line}`, 234, 300 + index * 34);
+    ctx.fillText(`- ${line}`, 234, 300 + index * 34);
   });
   ctx.fillStyle = "#b0495d";
-  ctx.fillText("SPACE / ENTER / TAP で RESTART", 292, 436);
+  ctx.fillText("SPACE / ENTER / TAP TO RESTART", 292, 436);
 }
 
 function drawWrappedText(text, x, y, maxWidth, lineHeight, fontSize) {
@@ -2360,10 +2859,74 @@ function clamp(value, min, max) {
 }
 
 function handleStartOrRestart() {
-  if (state.scene === "title" || state.scene === "gameover" || state.scene === "clear") {
-    enterFullscreen();
-    resetGame();
+  enterFullscreen();
+  if (state.scene === "title") {
+    startPatientSelect();
+    return;
   }
+  if (state.scene === "patientSelect") {
+    if (getCurrentPatient().unlocked) startBriefing();
+    return;
+  }
+  if (state.scene === "briefing") {
+    startInjection();
+    return;
+  }
+  if (state.scene === "injection") {
+    beginPlaying();
+    return;
+  }
+  if (state.scene === "result" || state.scene === "clear") {
+    returnToTitle();
+    return;
+  }
+  if (state.scene === "gameover") {
+    startPatientSelect();
+  }
+}
+
+function startPatientSelect() {
+  resetGame("patientSelect");
+  setPatientBgm("normal");
+  state.uiNoiseTimer = 8;
+}
+
+function startBriefing() {
+  resetGame("briefing");
+  setPatientBgm("normal");
+  state.uiNoiseTimer = 10;
+}
+
+function startInjection() {
+  state.scene = "injection";
+  state.injectionTimer = 0;
+  state.screenFlashTimer = 6;
+  state.uiNoiseTimer = 8;
+  state.cameraShake = 4;
+}
+
+function beginPlaying() {
+  state.scene = "playing";
+  state.injectionTimer = 0;
+  setPatientBgm("normal");
+  state.screenFlashTimer = 6;
+}
+
+function returnToTitle() {
+  state.scene = "title";
+  state.areaIndex = 0;
+  state.areaFrame = 0;
+  state.boss = null;
+  state.bossActive = false;
+  state.bossSpawnQueued = false;
+  state.gameOverTimer = 0;
+  state.noteTimer = 0;
+  state.areaBannerTimer = 0;
+  state.screenFlashTimer = 0;
+  state.uiNoiseTimer = 0;
+  state.cameraShake = 0;
+  state.cameraDriftX = 0;
+  state.cameraDriftY = 0;
 }
 
 function enterFullscreen() {
@@ -2382,6 +2945,10 @@ function onKeyChange(code, pressed) {
   if (code === "ArrowDown" || code === "KeyS") state.keys.down = pressed;
   if (code === "ArrowLeft" || code === "KeyA") state.keys.left = pressed;
   if (code === "ArrowRight" || code === "KeyD") state.keys.right = pressed;
+  if (pressed && state.scene === "patientSelect") {
+    if (code === "ArrowLeft" || code === "KeyA") changePatientSelection(-1);
+    if (code === "ArrowRight" || code === "KeyD") changePatientSelection(1);
+  }
   if (code === "Space") {
     state.keys.shoot = pressed;
     if (pressed && state.scene !== "playing") handleStartOrRestart();
@@ -2430,6 +2997,16 @@ function touchRegions(point) {
   };
 }
 
+function patientSelectRegions(point) {
+  return {
+    left: point.x >= 74 && point.x <= 114 && point.y >= 424 && point.y <= 464,
+    right: point.x >= 842 && point.x <= 882 && point.y >= 424 && point.y <= 464,
+    start: point.x >= 872 && point.x <= 924 && point.y >= 424 && point.y <= 464,
+    leftPane: point.x < GAME.width * 0.5,
+    rightPane: point.x >= GAME.width * 0.5,
+  };
+}
+
 window.addEventListener("keydown", (event) => {
   if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(event.code)) event.preventDefault();
   onKeyChange(event.code, true);
@@ -2447,6 +3024,15 @@ canvas.addEventListener("pointerdown", (event) => {
     }
   }
   const point = canvasPoint(event);
+  if (state.scene === "patientSelect") {
+    const regions = patientSelectRegions(point);
+    if (regions.left) changePatientSelection(-1);
+    else if (regions.right) changePatientSelection(1);
+    else if (regions.start && getCurrentPatient().unlocked) startBriefing();
+    else if (regions.leftPane) changePatientSelection(-1);
+    else if (regions.rightPane) changePatientSelection(1);
+    return;
+  }
   if (state.scene !== "playing") {
     handleStartOrRestart();
     return;
