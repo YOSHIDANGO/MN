@@ -111,6 +111,7 @@ const state = {
   areaBannerTimer: 0,
   powerUpNoticeTimer: 0,
   powerUpNoticeText: "",
+  hitStopTimer: 0,
   bossWarningTimer: 0,
   bossSpawnQueued: false,
   bossActive: false,
@@ -118,7 +119,13 @@ const state = {
   gameOverTimer: 0,
   cameraShake: 0,
   damageFlashTimer: 0,
+  screenFlashTimer: 0,
+  uiNoiseTimer: 0,
   globalScrollBonus: 0,
+  scorePopups: [],
+  currentBgm: "normal",
+  bossHpLag: 0,
+  bossDamageFlashTimer: 0,
   learningSummary: [
     "喉の痛みは炎症反応のサイン",
     "胃酸は消化と殺菌に役立つ",
@@ -210,6 +217,7 @@ function resetGame() {
   state.areaBannerTimer = 180;
   state.powerUpNoticeTimer = 0;
   state.powerUpNoticeText = "";
+  state.hitStopTimer = 0;
   state.bossWarningTimer = 0;
   state.bossSpawnQueued = false;
   state.bossActive = false;
@@ -217,7 +225,13 @@ function resetGame() {
   state.gameOverTimer = 0;
   state.cameraShake = 0;
   state.damageFlashTimer = 0;
+  state.screenFlashTimer = 0;
+  state.uiNoiseTimer = 0;
   state.globalScrollBonus = 0;
+  state.scorePopups = [];
+  state.currentBgm = "normal";
+  state.bossHpLag = GAME.bossMaxHp;
+  state.bossDamageFlashTimer = 0;
   state.player = makePlayer();
   state.helper = null;
   state.boss = null;
@@ -254,6 +268,11 @@ function getAreaLabel() {
 }
 
 function update() {
+  if (state.hitStopTimer > 0) {
+    state.hitStopTimer -= 1;
+    return;
+  }
+
   state.frame += 1;
   if (state.scene === "title") {
     return;
@@ -272,6 +291,9 @@ function update() {
   state.bossWarningTimer = Math.max(0, state.bossWarningTimer - 1);
   state.cameraShake = Math.max(0, state.cameraShake - 0.4);
   state.damageFlashTimer = Math.max(0, state.damageFlashTimer - 1);
+  state.screenFlashTimer = Math.max(0, state.screenFlashTimer - 1);
+  state.uiNoiseTimer = Math.max(0, state.uiNoiseTimer - 1);
+  state.bossDamageFlashTimer = Math.max(0, state.bossDamageFlashTimer - 1);
 
   if (state.bossSpawnQueued && state.bossWarningTimer === 0 && !state.bossActive) {
     spawnBoss();
@@ -286,8 +308,13 @@ function update() {
   updateCapsules();
   updateHazards();
   updateParticles();
+  updateScorePopups();
   handleCollisions();
   cleanupEntities();
+}
+
+function triggerHitStop(frames) {
+  state.hitStopTimer = Math.max(state.hitStopTimer, frames);
 }
 
 function updateStageProgress() {
@@ -315,6 +342,7 @@ function updateStageProgress() {
 function startBossWarning() {
   state.bossSpawnQueued = true;
   state.bossWarningTimer = 96;
+  state.currentBgm = "warning";
   state.areaIndex = AREAS.length - 1;
   state.areaBannerTimer = 0;
   state.noteTimer = 0;
@@ -324,6 +352,7 @@ function startBossWarning() {
 function spawnBoss() {
   state.bossSpawnQueued = false;
   state.bossActive = true;
+  state.currentBgm = "boss";
   state.areaIndex = AREAS.length - 1;
   state.areaBannerTimer = 240;
   state.noteTimer = 200;
@@ -341,6 +370,9 @@ function spawnBoss() {
     summonTimer: 0,
     entered: false,
   };
+  state.bossHpLag = state.boss.maxHp;
+  state.bossDamageFlashTimer = 18;
+  state.screenFlashTimer = 8;
 }
 
 function updatePlayer(player) {
@@ -581,8 +613,9 @@ function updateEnemies() {
 function updateBoss() {
   if (!state.bossActive || !state.boss) return;
   const boss = state.boss;
+  state.bossHpLag += (boss.hp - state.bossHpLag) * 0.08;
   if (!boss.entered) {
-    boss.x -= 2;
+    boss.x -= 1.5;
     if (boss.x <= 790) boss.entered = true;
     return;
   }
@@ -631,10 +664,16 @@ function updateBoss() {
   }
 
   if (boss.hp <= 0) {
-    explodeAt(boss.x, boss.y, 36, "#ffb8d4");
+    for (let i = 0; i < 5; i += 1) {
+      explodeAt(boss.x + (Math.random() - 0.5) * 90, boss.y + (Math.random() - 0.5) * 90, 40 + i * 6, i % 2 ? "#ffffff" : "#9ff7ff");
+    }
     state.boss = null;
     state.bossActive = false;
     state.bossDefeated = true;
+    state.currentBgm = "clear";
+    state.cameraShake = 18;
+    state.screenFlashTimer = 18;
+    triggerHitStop(8);
     state.scene = "clear";
   }
 }
@@ -689,6 +728,24 @@ function updateParticles() {
     particle.vx *= 0.98;
     particle.vy *= 0.98;
   }
+  if (area.id === "intestine") {
+    for (let i = 0; i < 10; i += 1) {
+      const x = (i * 110 - state.frame * 1.4) % (GAME.width + 80);
+      const y = 90 + (i % 5) * 74 + Math.sin(state.frame * 0.03 + i) * 10;
+      ctx.fillStyle = "rgba(222, 255, 236, 0.08)";
+      ctx.beginPath();
+      ctx.arc(x, y, 4 + (i % 2), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function updateScorePopups() {
+  for (const popup of state.scorePopups) {
+    popup.life -= 1;
+    popup.y -= 0.45;
+  }
+  state.scorePopups = state.scorePopups.filter((popup) => popup.life > 0);
 }
 
 function handleCollisions() {
@@ -699,12 +756,15 @@ function handleCollisions() {
         shot.hit = true;
         enemy.hp -= shot.damage;
         spawnShotHitEffect(shot.x, shot.y);
+        triggerHitStop(2);
       }
     }
     if (state.boss && hitCircleRect(shot.x, shot.y, shot.r, toRect(state.boss))) {
       shot.hit = true;
       state.boss.hp -= shot.damage;
       spawnShotHitEffect(shot.x, shot.y);
+      state.bossDamageFlashTimer = 8;
+      triggerHitStop(4);
     }
   }
 
@@ -756,7 +816,15 @@ function cleanupEntities() {
   state.enemies = state.enemies.filter((enemy) => {
     if (enemy.hp <= 0) {
       state.score += enemy.score;
-      explodeAt(enemy.x, enemy.y, enemy.w * 0.5, "#ff9fc2");
+      state.scorePopups.push({
+        x: enemy.x,
+        y: enemy.y - 8,
+        text: `+${enemy.score}`,
+        life: 42,
+      });
+      explodeAt(enemy.x, enemy.y, enemy.w * 0.5, enemy.w >= 40 ? "#ffffff" : "#9ff7ff");
+      triggerHitStop(enemy.w >= 40 ? 4 : 3);
+      state.cameraShake = Math.max(state.cameraShake, enemy.w >= 40 ? 8 : 4);
       if (Math.random() < GAME.capsuleChance) {
         state.capsules.push({ x: enemy.x, y: enemy.y, r: 10, seed: Math.random() * 999 });
       }
@@ -796,6 +864,9 @@ function damagePlayer() {
   player.invuln = GAME.invulnDuration;
   state.cameraShake = 10;
   state.damageFlashTimer = 10;
+  state.uiNoiseTimer = 12;
+  state.screenFlashTimer = 6;
+  player.x = Math.max(40, player.x - 14);
   explodeAt(player.x, player.y, 18, "#ffffff");
   if (player.lives <= 0) {
     state.scene = "gameover";
@@ -803,17 +874,30 @@ function damagePlayer() {
 }
 
 function explodeAt(x, y, spread, color) {
-  for (let i = 0; i < 10; i += 1) {
+  const intensity = spread > 30 ? 2.2 : spread > 18 ? 1.5 : 1;
+  const count = Math.floor(10 * intensity);
+  state.particles.push({
+    x,
+    y,
+    vx: 0,
+    vy: 0,
+    life: 10 + intensity * 2,
+    color: "#ffffff",
+    size: 6 + intensity * 2,
+    kind: "ring",
+    alpha: 0.85,
+  });
+  for (let i = 0; i < count; i += 1) {
     state.particles.push({
       x,
       y,
       vx: (Math.random() - 0.5) * spread * 0.3,
       vy: (Math.random() - 0.5) * spread * 0.3,
       life: 18 + Math.random() * 20,
-      color,
+      color: i % 3 === 0 ? "#ffffff" : color,
       size: 2 + Math.random() * 4,
-      kind: "burst",
-      alpha: 0.7,
+      kind: i % 2 === 0 ? "spark" : "burst",
+      alpha: 0.7 + Math.random() * 0.2,
     });
   }
 }
@@ -830,6 +914,7 @@ function draw() {
   drawEnemiesLayer();
   drawEnemyShotsLayer();
   drawItemsLayer();
+  drawScorePopups();
   drawPlayerShotsLayer();
   drawHelpersLayer();
   drawPlayerLayer();
@@ -839,6 +924,12 @@ function draw() {
 }
 
 function applyCameraShake() {
+  if (state.damageFlashTimer > 0) {
+    const zoom = 1 + state.damageFlashTimer * 0.002;
+    ctx.translate(GAME.width / 2, GAME.height / 2);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-GAME.width / 2, -GAME.height / 2);
+  }
   if (state.cameraShake <= 0) return;
   const dx = (Math.random() - 0.5) * state.cameraShake;
   const dy = (Math.random() - 0.5) * state.cameraShake;
@@ -1176,6 +1267,20 @@ function drawPlayerLayer() {
 function drawParticles() {
   if (state.scene === "title") return;
   for (const particle of state.particles) drawParticle(particle);
+}
+
+function drawScorePopups() {
+  if (state.scene === "title") return;
+  for (const popup of state.scorePopups) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, popup.life / 24);
+    ctx.fillStyle = "#8ef6ff";
+    ctx.font = "bold 14px monospace";
+    ctx.fillText(popup.text, popup.x - 16, popup.y);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(popup.text, popup.x - 17, popup.y - 1);
+    ctx.restore();
+  }
 }
 
 function drawPlayer(player) {
@@ -1686,23 +1791,26 @@ function drawUi() {
     return;
   }
 
-  ctx.fillStyle = "rgba(6, 12, 18, 0.78)";
-  ctx.fillRect(12, 10, GAME.width - 24, 36);
-  ctx.strokeStyle = "rgba(109, 240, 255, 0.28)";
-  ctx.strokeRect(12, 10, GAME.width - 24, 36);
-  ctx.fillStyle = "#f7f7ff";
-  ctx.font = "16px sans-serif";
-  ctx.fillText(`SCORE ${String(state.score).padStart(6, "0")}`, 24, 32);
-  ctx.fillText(`LIFE ${state.player.lives}`, 220, 32);
-  ctx.fillText(`BOMB ${state.player.bombs}`, 320, 32);
-  ctx.fillStyle = "#8ef6ff";
-  ctx.fillText(`AREA ${getCurrentArea().name}`, 430, 32);
+  drawMonitorPanel(12, 10, GAME.width - 24, 42);
+  drawStatPanel(20, 14, 154, 26, "SCORE", String(state.score).padStart(6, "0"));
+  drawStatPanel(184, 14, 82, 26, "LIFE", String(state.player.lives));
+  drawStatPanel(276, 14, 92, 26, "BOMB", String(state.player.bombs));
+  drawAreaHud(382, 14, 240, 26, `BIO AREA : ${String(getCurrentArea().name).toUpperCase()}`);
+  drawEcgLine(634, 15, 126, 24);
+  drawHudDigits(766, 18, "VTL 72");
+  drawHudDigits(844, 18, "O2 98");
 
   if (state.boss) {
     ctx.fillStyle = "rgba(255,255,255,0.16)";
     ctx.fillRect(680, 18, 240, 16);
+    ctx.fillStyle = "rgba(255,255,255,0.28)";
+    ctx.fillRect(680, 18, 240 * (state.bossHpLag / state.boss.maxHp), 16);
     ctx.fillStyle = "#ff6a84";
     ctx.fillRect(680, 18, 240 * (state.boss.hp / state.boss.maxHp), 16);
+    if (state.bossDamageFlashTimer > 0) {
+      ctx.fillStyle = `rgba(255,255,255,${state.bossDamageFlashTimer / 10})`;
+      ctx.fillRect(680, 18, 240 * (state.boss.hp / state.boss.maxHp), 16);
+    }
     ctx.strokeStyle = "#ffffff";
     ctx.strokeRect(680, 18, 240, 16);
   }
@@ -1714,10 +1822,8 @@ function drawUi() {
 function drawPowerUpGauge() {
   const mobileLike = window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
   const y = mobileLike ? GAME.height - 74 : GAME.height - 36;
-  ctx.fillStyle = "rgba(8, 12, 20, 0.82)";
-  ctx.fillRect(116, y - 16, 728, 32);
-  ctx.strokeStyle = "rgba(91, 239, 255, 0.35)";
-  ctx.strokeRect(116, y - 16, 728, 32);
+  drawMonitorPanel(116, y - 16, 728, 32);
+  drawScanLines(120, y - 12, 720, 24, 5);
   const slotWidth = 720 / POWER_ORDER.length;
   POWER_ORDER.forEach((name, index) => {
     const x = 120 + slotWidth * index;
@@ -1729,12 +1835,14 @@ function drawPowerUpGauge() {
       ctx.fillRect(x + 2, y - 12, slotWidth - 4, 24);
       ctx.fillStyle = "rgba(255,255,255,0.18)";
       ctx.fillRect(x + 6 + Math.sin(state.frame * 0.1 + index) * 8, y - 11, 18, 22);
+      ctx.strokeStyle = "rgba(255,255,255,0.72)";
+      ctx.strokeRect(x + 2, y - 12, slotWidth - 4, 24);
     } else {
       ctx.fillStyle = "rgba(255,255,255,0.1)";
       ctx.fillRect(x + 2, y - 12, slotWidth - 4, 24);
     }
     ctx.fillStyle = isActive ? "#11131a" : "#7d8a9c";
-    ctx.font = "12px sans-serif";
+    ctx.font = "12px monospace";
     ctx.fillText(name, x + 14, y + 5);
   });
 }
@@ -1768,8 +1876,73 @@ function drawTouchButton(x, y, r, label, active, color) {
   ctx.fillText(label, x - 18, y + 5);
 }
 
+function drawMonitorPanel(x, y, w, h) {
+  ctx.fillStyle = "rgba(6, 12, 18, 0.82)";
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = "rgba(109, 240, 255, 0.32)";
+  ctx.strokeRect(x, y, w, h);
+  ctx.fillStyle = "rgba(255,255,255,0.04)";
+  ctx.fillRect(x + 6, y + 6, w - 12, 2);
+  drawScanLines(x + 2, y + 2, w - 4, h - 4, 6);
+}
+
+function drawScanLines(x, y, w, h, gap) {
+  ctx.strokeStyle = "rgba(120, 215, 230, 0.06)";
+  ctx.lineWidth = 1;
+  for (let yy = y; yy <= y + h; yy += gap) {
+    ctx.beginPath();
+    ctx.moveTo(x, yy);
+    ctx.lineTo(x + w, yy);
+    ctx.stroke();
+  }
+}
+
+function drawStatPanel(x, y, w, h, label, value) {
+  drawMonitorPanel(x, y, w, h);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "10px monospace";
+  ctx.fillText(label, x + 8, y + 11);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 14px monospace";
+  ctx.fillText(value, x + 8, y + 22);
+}
+
+function drawAreaHud(x, y, w, h, text) {
+  drawMonitorPanel(x, y, w, h);
+  ctx.fillStyle = "rgba(109, 240, 255, 0.18)";
+  ctx.fillRect(x + 6, y + 6, 6, h - 12);
+  ctx.fillStyle = "#dffcff";
+  ctx.font = "bold 13px monospace";
+  ctx.fillText(text, x + 20, y + 18);
+}
+
+function drawEcgLine(x, y, w, h) {
+  drawMonitorPanel(x, y, w, h);
+  ctx.strokeStyle = "#8ef6ff";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x + 6, y + h / 2);
+  ctx.lineTo(x + 22, y + h / 2);
+  ctx.lineTo(x + 30, y + h / 2 - 4);
+  ctx.lineTo(x + 36, y + h / 2 + 7);
+  ctx.lineTo(x + 44, y + h / 2 - 10);
+  ctx.lineTo(x + 50, y + h / 2);
+  ctx.lineTo(x + w - 8, y + h / 2);
+  ctx.stroke();
+}
+
+function drawHudDigits(x, y, text) {
+  const blink = Math.floor(state.frame / 24) % 2 === 0 ? "#dffcff" : "#8ef6ff";
+  ctx.fillStyle = blink;
+  ctx.font = "11px monospace";
+  ctx.fillText(text, x, y);
+}
+
 function drawOverlays() {
-  if (state.scene === "title") return;
+  if (state.scene === "title") {
+    drawTitleEffects();
+    return;
+  }
 
   if (state.areaBannerTimer > 0) {
     const label = getAreaLabel();
@@ -1807,18 +1980,40 @@ function drawOverlays() {
     const pulse = Math.floor(state.frame / 6) % 2 === 0;
     ctx.fillStyle = pulse ? "rgba(20, 0, 0, 0.38)" : "rgba(0, 0, 0, 0.22)";
     ctx.fillRect(0, 0, GAME.width, GAME.height);
-    ctx.fillStyle = "rgba(120, 0, 0, 0.72)";
-    ctx.fillRect(0, 218, GAME.width, 56);
+    ctx.fillStyle = pulse ? "rgba(150, 0, 22, 0.78)" : "rgba(96, 0, 18, 0.72)";
+    ctx.fillRect(0, 214, GAME.width, 64);
     ctx.strokeStyle = "#ffb3bf";
     ctx.lineWidth = 3;
-    ctx.strokeRect(0, 218, GAME.width, 56);
+    ctx.strokeRect(0, 214, GAME.width, 64);
     ctx.fillStyle = "#fff2f4";
-    ctx.font = "bold 34px sans-serif";
-    ctx.fillText("WARNING", 386, 256);
+    ctx.font = "bold 18px monospace";
+    ctx.fillText("ALERT", 398, 236);
+    ctx.font = "bold 34px monospace";
+    ctx.fillText("WARNING", 372, 262);
+    ctx.strokeStyle = "rgba(255,255,255,0.22)";
+    ctx.beginPath();
+    ctx.moveTo(20, 246);
+    ctx.lineTo(330, 246);
+    ctx.moveTo(630, 246);
+    ctx.lineTo(940, 246);
+    ctx.stroke();
   }
 
   if (state.damageFlashTimer > 0) {
     ctx.fillStyle = `rgba(255, 60, 60, ${state.damageFlashTimer / 34})`;
+    ctx.fillRect(0, 0, GAME.width, GAME.height);
+  }
+
+  if (state.uiNoiseTimer > 0) {
+    ctx.fillStyle = `rgba(255,255,255,${state.uiNoiseTimer / 90})`;
+    for (let i = 0; i < 8; i += 1) {
+      const y = 20 + i * 64 + ((state.frame * 7 + i * 13) % 20);
+      ctx.fillRect(0, y, GAME.width, 2);
+    }
+  }
+
+  if (state.screenFlashTimer > 0) {
+    ctx.fillStyle = `rgba(255,255,255,${state.screenFlashTimer / 30})`;
     ctx.fillRect(0, 0, GAME.width, GAME.height);
   }
 
@@ -1827,6 +2022,31 @@ function drawOverlays() {
   }
   if (state.scene === "clear") {
     drawClearOverlay();
+  }
+}
+
+function drawTitleEffects() {
+  for (let i = 0; i < 20; i += 1) {
+    const x = (i * 57 - state.frame * 0.8) % (GAME.width + 40);
+    const y = 40 + (i * 29) % 440;
+    ctx.fillStyle = "rgba(142, 246, 255, 0.12)";
+    ctx.fillRect(x, y, 2, 2);
+  }
+  ctx.strokeStyle = "rgba(142, 246, 255, 0.35)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(120, 450);
+  ctx.lineTo(240, 450);
+  ctx.lineTo(260, 442);
+  ctx.lineTo(272, 458);
+  ctx.lineTo(288, 430);
+  ctx.lineTo(304, 450);
+  ctx.lineTo(820, 450);
+  ctx.stroke();
+  if (Math.floor(state.frame / 20) % 2 === 0) {
+    ctx.fillStyle = "rgba(255, 242, 165, 0.9)";
+    ctx.font = "bold 28px monospace";
+    ctx.fillText("PRESS SPACE / ENTER / TAP TO START", 186, 440);
   }
 }
 
@@ -1848,9 +2068,6 @@ function drawTitleScreen() {
   ctx.fillStyle = "#5a4f46";
   ctx.fillText("PC: 矢印キー / WASD  移動   Space  ショット   Shift  ボム", 134, 350);
   ctx.fillText("スマホ: 左下スティック   右下 SHOT / BOMB", 134, 382);
-  ctx.fillStyle = "#b0495d";
-  ctx.font = "bold 28px sans-serif";
-  ctx.fillText("PRESS SPACE / ENTER / TAP TO START", 186, 440);
 }
 
 function drawResultOverlay(title, subtitle, footer) {
