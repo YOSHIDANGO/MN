@@ -118,6 +118,8 @@ const state = {
   bossDefeated: false,
   gameOverTimer: 0,
   cameraShake: 0,
+  cameraDriftX: 0,
+  cameraDriftY: 0,
   damageFlashTimer: 0,
   screenFlashTimer: 0,
   uiNoiseTimer: 0,
@@ -224,6 +226,8 @@ function resetGame() {
   state.bossDefeated = false;
   state.gameOverTimer = 0;
   state.cameraShake = 0;
+  state.cameraDriftX = 0;
+  state.cameraDriftY = 0;
   state.damageFlashTimer = 0;
   state.screenFlashTimer = 0;
   state.uiNoiseTimer = 0;
@@ -290,6 +294,8 @@ function update() {
   state.powerUpNoticeTimer = Math.max(0, state.powerUpNoticeTimer - 1);
   state.bossWarningTimer = Math.max(0, state.bossWarningTimer - 1);
   state.cameraShake = Math.max(0, state.cameraShake - 0.4);
+  state.cameraDriftX *= 0.88;
+  state.cameraDriftY *= 0.88;
   state.damageFlashTimer = Math.max(0, state.damageFlashTimer - 1);
   state.screenFlashTimer = Math.max(0, state.screenFlashTimer - 1);
   state.uiNoiseTimer = Math.max(0, state.uiNoiseTimer - 1);
@@ -298,6 +304,8 @@ function update() {
   if (state.bossSpawnQueued && state.bossWarningTimer === 0 && !state.bossActive) {
     spawnBoss();
   }
+
+  updateCameraDrift();
 
   updateStageProgress();
   updatePlayer(player);
@@ -315,6 +323,14 @@ function update() {
 
 function triggerHitStop(frames) {
   state.hitStopTimer = Math.max(state.hitStopTimer, frames);
+}
+
+function updateCameraDrift() {
+  const area = getCurrentArea();
+  const targetX = clamp(state.globalScrollBonus * 1.1, -2, 5) + (state.boss && !state.boss.entered ? 1.5 : 0);
+  const targetY = area.id === "stomach" ? Math.sin(state.frame * 0.03) * 0.8 : 0;
+  state.cameraDriftX += (targetX - state.cameraDriftX) * 0.08;
+  state.cameraDriftY += (targetY - state.cameraDriftY) * 0.08;
 }
 
 function updateStageProgress() {
@@ -930,6 +946,9 @@ function applyCameraShake() {
     ctx.scale(zoom, zoom);
     ctx.translate(-GAME.width / 2, -GAME.height / 2);
   }
+  if (state.cameraDriftX !== 0 || state.cameraDriftY !== 0) {
+    ctx.translate(state.cameraDriftX, state.cameraDriftY);
+  }
   if (state.cameraShake <= 0) return;
   const dx = (Math.random() - 0.5) * state.cameraShake;
   const dy = (Math.random() - 0.5) * state.cameraShake;
@@ -944,8 +963,8 @@ function drawBackground() {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, GAME.width, GAME.height);
 
-  for (let i = 0; i < 26; i += 1) {
-    const x = (GAME.width - ((state.frame * 0.8 + i * 47) % (GAME.width + 200))) + 80;
+  for (let i = 0; i < 22; i += 1) {
+    const x = (GAME.width - ((state.frame * 0.45 + i * 47) % (GAME.width + 200))) + 80;
     const y = (i * 87 + Math.sin((state.frame + i * 12) * 0.01) * 30) % GAME.height;
     ctx.fillStyle = "rgba(255,255,255,0.025)";
     ctx.beginPath();
@@ -957,15 +976,16 @@ function drawBackground() {
 function drawAreaBackground() {
   const area = getCurrentArea();
   const hasBackgroundAsset = drawAreaBackgroundAsset(area);
-  if (hasBackgroundAsset) {
-    return;
+  drawAreaParallaxBack(area);
+  if (!hasBackgroundAsset) {
+    if (area.id === "mouth") drawMouthBackground(area);
+    if (area.id === "throat") drawThroatBackground(area);
+    if (area.id === "esophagus") drawEsophagusBackground(area);
+    if (area.id === "stomach") drawStomachBackground(area);
+    if (area.id === "intestine") drawIntestineBackground(area);
+    if (area.id === "nest") drawNestBackground(area);
   }
-  if (area.id === "mouth") drawMouthBackground(area);
-  if (area.id === "throat") drawThroatBackground(area);
-  if (area.id === "esophagus") drawEsophagusBackground(area);
-  if (area.id === "stomach") drawStomachBackground(area);
-  if (area.id === "intestine") drawIntestineBackground(area);
-  if (area.id === "nest") drawNestBackground(area);
+  drawAreaParallaxFront(area);
 }
 
 function drawAreaBackgroundAsset(area) {
@@ -984,6 +1004,125 @@ function drawAreaBackgroundAsset(area) {
   const drawn = drawAsset(key, 0, 0, GAME.width, GAME.height);
   ctx.restore();
   return drawn;
+}
+
+function drawAreaParallaxBack(area) {
+  ctx.save();
+  if (area.id === "mouth") {
+    ctx.fillStyle = "rgba(255, 221, 231, 0.08)";
+    for (let i = 0; i < 5; i += 1) {
+      const x = i * 240 - ((state.frame * 0.45) % 240);
+      ctx.beginPath();
+      ctx.ellipse(x + 120, 220 + Math.sin(i + state.frame * 0.012) * 16, 170, 96, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (area.id === "throat") {
+    ctx.strokeStyle = "rgba(255, 206, 214, 0.08)";
+    ctx.lineWidth = 20;
+    for (let i = 0; i < 3; i += 1) {
+      ctx.beginPath();
+      ctx.moveTo(0, 110 + i * 120);
+      for (let x = 0; x <= GAME.width; x += 30) {
+        ctx.lineTo(x, 108 + i * 120 + Math.sin((x + state.frame * 0.9 + i * 40) * 0.014) * 24);
+      }
+      ctx.stroke();
+    }
+  } else if (area.id === "esophagus") {
+    ctx.fillStyle = "rgba(255, 233, 240, 0.06)";
+    for (let i = 0; i < 6; i += 1) {
+      const x = i * 180 - ((state.frame * 0.8) % 180);
+      ctx.fillRect(x, 102 + Math.sin(i + state.frame * 0.02) * 18, 68, 320);
+    }
+  } else if (area.id === "stomach") {
+    ctx.fillStyle = "rgba(255, 226, 140, 0.06)";
+    for (let i = 0; i < 4; i += 1) {
+      const x = i * 260 - ((state.frame * 0.55) % 260);
+      ctx.beginPath();
+      ctx.ellipse(x + 120, 220 + Math.sin(i + state.frame * 0.016) * 26, 180, 104, 0.12, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (area.id === "intestine") {
+    ctx.fillStyle = "rgba(255, 229, 198, 0.08)";
+    for (let i = 0; i < 5; i += 1) {
+      const y = 78 + i * 86;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      for (let x = 0; x <= GAME.width; x += 24) {
+        ctx.lineTo(x, y + Math.sin((x + state.frame * 1.05 + i * 54) * 0.022) * 22);
+      }
+      ctx.lineTo(GAME.width, y + 46);
+      ctx.lineTo(0, y + 46);
+      ctx.fill();
+    }
+  } else if (area.id === "nest") {
+    ctx.fillStyle = "rgba(255, 110, 188, 0.07)";
+    for (let i = 0; i < 8; i += 1) {
+      const x = i * 160 - ((state.frame * 0.7) % 160);
+      ctx.beginPath();
+      ctx.arc(x + 50, 70 + (i % 3) * 140, 50 + (i % 2) * 20, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawAreaParallaxFront(area) {
+  ctx.save();
+  if (area.id === "stomach") {
+    drawStomachForegroundVeil();
+  }
+  if (area.id === "intestine") {
+    ctx.fillStyle = "rgba(255, 244, 226, 0.08)";
+    for (let i = 0; i < 4; i += 1) {
+      const x = i * 260 - ((state.frame * 1.55) % 260);
+      ctx.beginPath();
+      ctx.ellipse(x + 120, 180 + (i % 2) * 160, 70, 210, 0.18, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  if (area.id === "mouth" || area.id === "throat" || area.id === "esophagus") {
+    ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
+    for (let i = 0; i < 3; i += 1) {
+      const x = i * 360 - ((state.frame * 1.45) % 360);
+      ctx.beginPath();
+      ctx.ellipse(x + 90, 270, 58, 240, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  if (area.id === "nest") {
+    ctx.strokeStyle = "rgba(255, 170, 232, 0.08)";
+    ctx.lineWidth = 18;
+    for (let i = 0; i < 2; i += 1) {
+      ctx.beginPath();
+      ctx.moveTo(0, 120 + i * 210);
+      for (let x = 0; x <= GAME.width; x += 36) {
+        ctx.lineTo(x, 124 + i * 210 + Math.sin((x + state.frame * 1.8 + i * 70) * 0.018) * 32);
+      }
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawStomachForegroundVeil() {
+  ctx.fillStyle = "rgba(255, 236, 178, 0.1)";
+  ctx.beginPath();
+  ctx.moveTo(0, GAME.height);
+  for (let x = 0; x <= GAME.width; x += 24) {
+    const y = GAME.height - 118 + Math.sin((x + state.frame * 1.8) * 0.018) * 10 + Math.sin((x + state.frame * 0.8) * 0.042) * 5;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(GAME.width, GAME.height);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255, 250, 220, 0.05)";
+  ctx.beginPath();
+  ctx.moveTo(0, GAME.height);
+  for (let x = 0; x <= GAME.width; x += 20) {
+    const y = GAME.height - 94 + Math.sin((x + state.frame * 2.4) * 0.024) * 8;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(GAME.width, GAME.height);
+  ctx.fill();
 }
 
 function drawMouthBackground(area) {
@@ -1096,13 +1235,14 @@ function drawStomachBackground(area) {
 }
 
 function drawIntestineBackground(area) {
+  const pulse = Math.sin(state.frame * 0.05) * 7;
   ctx.fillStyle = "rgba(255, 214, 178, 0.14)";
   for (let i = 0; i < 6; i += 1) {
     const y = 64 + i * 56;
     ctx.beginPath();
     ctx.moveTo(0, y);
     for (let x = 0; x <= GAME.width; x += 20) {
-      ctx.lineTo(x, y + Math.sin((x + state.frame * 3.5 + i * 26) * 0.06) * 16);
+      ctx.lineTo(x, y + Math.sin((x + state.frame * 3.8 + i * 26) * 0.06) * (16 + pulse * 0.18));
     }
     ctx.lineTo(GAME.width, y + 34);
     ctx.lineTo(0, y + 34);
@@ -1110,9 +1250,9 @@ function drawIntestineBackground(area) {
   }
   ctx.fillStyle = "rgba(255, 240, 220, 0.24)";
   for (let i = 0; i < 14; i += 1) {
-    const x = i * 54 - ((state.frame * 1.9) % 54);
-    const topHeight = 26 + (i % 4) * 8;
-    const bottomHeight = 24 + ((i + 2) % 4) * 9;
+    const x = i * 54 - ((state.frame * 2.1) % 54);
+    const topHeight = 26 + (i % 4) * 8 + pulse * 0.24;
+    const bottomHeight = 24 + ((i + 2) % 4) * 9 + pulse * 0.22;
     ctx.beginPath();
     ctx.moveTo(x, 0);
     ctx.lineTo(x + 12, topHeight);
@@ -1164,6 +1304,16 @@ function drawNonDangerEffects() {
       ctx.fill();
     }
   }
+  if (area.id === "throat" || area.id === "esophagus" || area.id === "intestine") {
+    for (let i = 0; i < 8; i += 1) {
+      const x = GAME.width - ((state.frame * (1.6 + (i % 3) * 0.28) + i * 110) % (GAME.width + 90));
+      const y = 70 + ((i * 57 + Math.sin(state.frame * 0.04 + i) * 22) % 390);
+      ctx.fillStyle = i % 3 === 0 ? "rgba(255, 238, 238, 0.16)" : "rgba(255, 196, 210, 0.1)";
+      ctx.beginPath();
+      ctx.ellipse(x, y, 7 + (i % 2) * 2, 4 + (i % 2), 0.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
   if (area.id === "stomach") {
     for (let i = 0; i < 4; i += 1) {
       const x = 180 + i * 180 - ((state.frame * 1.1) % 120);
@@ -1171,6 +1321,27 @@ function drawNonDangerEffects() {
       ctx.fillStyle = "rgba(235, 255, 155, 0.12)";
       ctx.beginPath();
       ctx.arc(x, y, 10 + (i % 2) * 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    for (let i = 0; i < 6; i += 1) {
+      const x = 120 + i * 150 - ((state.frame * 1.35) % 150);
+      const y = 332 + Math.sin(state.frame * 0.045 + i * 0.8) * 16;
+      ctx.fillStyle = "rgba(255, 248, 180, 0.1)";
+      ctx.beginPath();
+      ctx.arc(x, y, 6 + (i % 3), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255, 255, 214, 0.18)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
+  if (area.id === "intestine") {
+    ctx.fillStyle = "rgba(255, 246, 232, 0.08)";
+    for (let i = 0; i < 7; i += 1) {
+      const x = GAME.width - ((state.frame * 1.1 + i * 132) % (GAME.width + 80));
+      const y = 96 + (i * 52) % 320 + Math.sin(state.frame * 0.03 + i) * 10;
+      ctx.beginPath();
+      ctx.arc(x, y, 3 + (i % 2), 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -2026,6 +2197,18 @@ function drawOverlays() {
 }
 
 function drawTitleEffects() {
+  ctx.fillStyle = "rgba(18, 28, 38, 0.44)";
+  for (let i = 0; i < 5; i += 1) {
+    const x = i * 240 - ((state.frame * 0.55) % 240);
+    ctx.fillRect(x, 70, 180, 360);
+  }
+  ctx.fillStyle = "rgba(142, 246, 255, 0.06)";
+  for (let i = 0; i < 4; i += 1) {
+    const x = i * 280 - ((state.frame * 1.1) % 280);
+    ctx.beginPath();
+    ctx.ellipse(x + 120, 250, 72, 220, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
   for (let i = 0; i < 20; i += 1) {
     const x = (i * 57 - state.frame * 0.8) % (GAME.width + 40);
     const y = 40 + (i * 29) % 440;
