@@ -890,16 +890,6 @@ function updateParticles() {
     particle.vx *= 0.98;
     particle.vy *= 0.98;
   }
-  if (area.id === "intestine") {
-    for (let i = 0; i < 10; i += 1) {
-      const x = (i * 110 - state.frame * 1.4) % (GAME.width + 80);
-      const y = 90 + (i % 5) * 74 + Math.sin(state.frame * 0.03 + i) * 10;
-      ctx.fillStyle = "rgba(222, 255, 236, 0.08)";
-      ctx.beginPath();
-      ctx.arc(x, y, 4 + (i % 2), 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
 }
 
 function updateScorePopups() {
@@ -1102,6 +1092,25 @@ function applyCameraShake() {
 }
 
 function drawBackground() {
+  if (state.scene === "title" || state.scene === "patientSelect" || state.scene === "briefing" || state.scene === "injection" || state.scene === "result" || state.scene === "gameover" || state.scene === "clear") {
+    const uiGrad = ctx.createLinearGradient(0, 0, 0, GAME.height);
+    uiGrad.addColorStop(0, "#081018");
+    uiGrad.addColorStop(0.55, "#0b1620");
+    uiGrad.addColorStop(1, "#09111a");
+    ctx.fillStyle = uiGrad;
+    ctx.fillRect(0, 0, GAME.width, GAME.height);
+
+    for (let i = 0; i < 18; i += 1) {
+      const x = (GAME.width - ((state.frame * 0.35 + i * 53) % (GAME.width + 160))) + 60;
+      const y = (i * 71 + Math.sin((state.frame + i * 10) * 0.012) * 26) % GAME.height;
+      ctx.fillStyle = "rgba(142, 246, 255, 0.035)";
+      ctx.beginPath();
+      ctx.arc(x, y, 2 + (i % 3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    return;
+  }
+
   const area = getCurrentArea();
   const grad = ctx.createLinearGradient(0, 0, 0, GAME.height);
   grad.addColorStop(0, area.colorA);
