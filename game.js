@@ -1129,6 +1129,9 @@ function drawBackground() {
 }
 
 function drawAreaBackground() {
+  if (state.scene === "title" || state.scene === "patientSelect" || state.scene === "briefing" || state.scene === "injection" || state.scene === "result" || state.scene === "gameover" || state.scene === "clear") {
+    return;
+  }
   const area = getCurrentArea();
   const hasBackgroundAsset = drawAreaBackgroundAsset(area);
   drawAreaParallaxBack(area);
@@ -2472,6 +2475,7 @@ function drawPatientSelectScreen() {
     ctx.lineWidth = isSelected ? 3 : 1.5;
     ctx.strokeRect(cardX, cardY, cardW, cardH);
     if (isSelected) {
+      drawPatientCaseSilhouette(entry, cardX + 214, cardY + 124, cardW, cardH, entryTheme);
       ctx.fillStyle = entryTheme.glow;
       ctx.fillRect(cardX + 8, cardY + 8, cardW - 16, 14);
       drawScanLines(cardX + 6, cardY + 6, cardW - 12, cardH - 12, 9);
@@ -2514,9 +2518,9 @@ function drawPatientSelectScreen() {
   ctx.font = "bold 22px monospace";
   ctx.fillText("LEFT / RIGHT TO CHANGE   ENTER / TAP TO BRIEFING", 116, 492);
 
-  drawSelectArrowButton(74, 424, "<", theme, false);
-  drawSelectArrowButton(842, 424, ">", theme, false);
-  drawSelectArrowButton(872, 424, "OK", theme, true);
+  drawSelectArrowButton(24, 424, "<", theme, false);
+  drawSelectArrowButton(896, 424, ">", theme, false);
+  drawSelectArrowButton(874, 470, "OK", theme, true);
 }
 
 function drawSelectArrowButton(x, y, label, theme, wide) {
@@ -2530,6 +2534,84 @@ function drawSelectArrowButton(x, y, label, theme, wide) {
   ctx.fillStyle = theme.accent;
   ctx.font = wide ? "bold 18px monospace" : "bold 22px monospace";
   ctx.fillText(label, x + (wide ? 13 : 12), y + 26);
+}
+
+function drawPatientCaseSilhouette(patient, x, y, cardW, cardH, theme) {
+  const pulse = 0.06 + Math.sin(state.frame * 0.08) * 0.01;
+  const lineColor = theme.accent;
+  const secondary = theme.secondary;
+  const femaleStyle = patient.id === "Patient 01";
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.globalAlpha = Math.max(0.04, Math.min(0.12, pulse));
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 2;
+
+  for (let i = -70; i <= 70; i += 9) {
+    ctx.strokeStyle = i % 18 === 0 ? theme.glow : "rgba(255,255,255,0.025)";
+    ctx.beginPath();
+    ctx.moveTo(-28, i);
+    ctx.lineTo(78, i);
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = lineColor;
+  ctx.beginPath();
+  ctx.arc(20, -58, femaleStyle ? 26 : 24, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.beginPath();
+  if (femaleStyle) {
+    ctx.moveTo(-2, -80);
+    ctx.quadraticCurveTo(-26, -58, -10, -26);
+    ctx.moveTo(42, -80);
+    ctx.quadraticCurveTo(66, -56, 48, -22);
+    ctx.moveTo(-6, -70);
+    ctx.quadraticCurveTo(20, -92, 48, -70);
+  } else {
+    ctx.moveTo(-2, -72);
+    ctx.quadraticCurveTo(20, -90, 44, -72);
+    ctx.moveTo(-4, -62);
+    ctx.quadraticCurveTo(-16, -36, -2, -20);
+    ctx.moveTo(44, -62);
+    ctx.quadraticCurveTo(58, -36, 42, -18);
+  }
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(20, -30);
+  ctx.lineTo(20, 48);
+  ctx.moveTo(20, -8);
+  ctx.lineTo(-10, 14);
+  ctx.moveTo(20, -8);
+  ctx.lineTo(48, 16);
+  ctx.moveTo(20, 48);
+  ctx.lineTo(4, 92);
+  ctx.moveTo(20, 48);
+  ctx.lineTo(38, 92);
+  ctx.stroke();
+
+  ctx.strokeStyle = secondary;
+  ctx.beginPath();
+  ctx.moveTo(-8, 14);
+  ctx.quadraticCurveTo(20, 30, 46, 14);
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(255,255,255,0.08)";
+  ctx.strokeRect(-30, -96, 112, 204);
+
+  const sweepX = -24 + ((state.frame * 2.2) % 96);
+  ctx.fillStyle = theme.glow;
+  ctx.fillRect(sweepX, -92, 10, 196);
+
+  for (let i = 0; i < 5; i += 1) {
+    const px = -18 + i * 20 + Math.sin(state.frame * 0.04 + i) * 2;
+    const py = -90 + ((state.frame * 1.1 + i * 34) % 180);
+    ctx.fillStyle = "rgba(255,255,255,0.05)";
+    ctx.fillRect(px, py, 2, 2);
+  }
+  ctx.restore();
 }
 
 function drawBriefingScreen() {
@@ -3008,9 +3090,9 @@ function touchRegions(point) {
 
 function patientSelectRegions(point) {
   return {
-    left: point.x >= 74 && point.x <= 114 && point.y >= 424 && point.y <= 464,
-    right: point.x >= 842 && point.x <= 882 && point.y >= 424 && point.y <= 464,
-    start: point.x >= 872 && point.x <= 924 && point.y >= 424 && point.y <= 464,
+    left: point.x >= 24 && point.x <= 64 && point.y >= 424 && point.y <= 464,
+    right: point.x >= 896 && point.x <= 936 && point.y >= 424 && point.y <= 464,
+    start: point.x >= 874 && point.x <= 926 && point.y >= 470 && point.y <= 510,
     leftPane: point.x < GAME.width * 0.5,
     rightPane: point.x >= GAME.width * 0.5,
   };
