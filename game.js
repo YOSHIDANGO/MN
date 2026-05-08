@@ -1093,6 +1093,8 @@ function draw() {
 }
 
 function applyCameraShake() {
+  const allowCameraMotion = state.scene === "playing" || state.scene === "injection";
+  if (!allowCameraMotion) return;
   if (state.damageFlashTimer > 0) {
     const zoom = 1 + state.damageFlashTimer * 0.002;
     ctx.translate(GAME.width / 2, GAME.height / 2);
