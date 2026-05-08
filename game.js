@@ -2551,12 +2551,13 @@ function drawPatientSelectScreen() {
   ctx.fillText(`NAME: ${patient.name.toUpperCase()}    AGE: ${patient.age}`, 118, 420);
   ctx.fillText(`THREAT: ${patient.threat}    UNLOCKED: ${patient.unlocked ? "YES" : "NO"}`, 118, 446);
   ctx.fillStyle = "#fff5bf";
-  ctx.font = "bold 22px monospace";
-  ctx.fillText("LEFT / RIGHT TO CHANGE   ENTER / TAP TO BRIEFING", 116, 492);
+  ctx.font = "bold 18px monospace";
+  ctx.fillText("LEFT / RIGHT TO CHANGE", 150, 486);
+  ctx.fillText("ENTER / TAP TO BRIEFING", 566, 486);
 
   drawSelectArrowButton(26, 420, "<", theme, false);
   drawSelectArrowButton(894, 420, ">", theme, false);
-  drawSelectArrowButton(454, 470, "OK", theme, true);
+  drawSelectArrowButton(454, 500, "OK", theme, true);
 }
 
 function drawSelectArrowButton(x, y, label, theme, wide) {
@@ -2814,20 +2815,17 @@ function drawInjectionScreen() {
 
   ctx.save();
   ctx.translate(shipX, shipY);
-  ctx.scale(0.78 + t * 0.1, 0.78 + t * 0.1);
+  ctx.scale(0.92 + t * 0.12, 0.92 + t * 0.12);
   ctx.rotate(Math.sin(state.frame * 0.04) * 0.02);
   ctx.globalAlpha = 0.92;
-  if (!drawAsset("player", -46, -28, 92, 56)) {
+  if (!drawAsset("player", -56, -34, 112, 68)) {
     ctx.fillStyle = "rgba(255,255,255,0.94)";
-    ctx.fillRect(-40, -10, 58, 20);
+    ctx.fillRect(-48, -12, 68, 24);
     ctx.fillStyle = "#8ef6ff";
-    ctx.fillRect(10, -8, 54, 16);
+    ctx.fillRect(12, -10, 64, 20);
     ctx.fillStyle = "#dffcff";
-    ctx.fillRect(56, -3, 22, 6);
+    ctx.fillRect(68, -4, 24, 8);
   }
-  ctx.strokeStyle = "rgba(142, 246, 255, 0.36)";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(-56, -36, 112, 72);
   ctx.restore();
 
   ctx.fillStyle = "rgba(142, 246, 255, 0.08)";
@@ -3245,7 +3243,7 @@ function patientSelectRegions(point) {
   return {
     left: point.x >= 16 && point.x <= 80 && point.y >= 412 && point.y <= 476,
     right: point.x >= 888 && point.x <= 952 && point.y >= 412 && point.y <= 476,
-    start: point.x >= 442 && point.x <= 526 && point.y >= 462 && point.y <= 522,
+    start: point.x >= 442 && point.x <= 526 && point.y >= 492 && point.y <= 540,
     leftPane: point.x < GAME.width * 0.5,
     rightPane: point.x >= GAME.width * 0.5,
   };
