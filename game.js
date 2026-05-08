@@ -111,10 +111,13 @@ const state = {
   areaBannerTimer: 0,
   powerUpNoticeTimer: 0,
   powerUpNoticeText: "",
+  bossWarningTimer: 0,
+  bossSpawnQueued: false,
   bossActive: false,
   bossDefeated: false,
   gameOverTimer: 0,
   cameraShake: 0,
+  damageFlashTimer: 0,
   globalScrollBonus: 0,
   learningSummary: [
     "喉の痛みは炎症反応のサイン",
@@ -207,10 +210,13 @@ function resetGame() {
   state.areaBannerTimer = 180;
   state.powerUpNoticeTimer = 0;
   state.powerUpNoticeText = "";
+  state.bossWarningTimer = 0;
+  state.bossSpawnQueued = false;
   state.bossActive = false;
   state.bossDefeated = false;
   state.gameOverTimer = 0;
   state.cameraShake = 0;
+  state.damageFlashTimer = 0;
   state.globalScrollBonus = 0;
   state.player = makePlayer();
   state.helper = null;
@@ -263,7 +269,13 @@ function update() {
   state.noteTimer = Math.max(0, state.noteTimer - 1);
   state.areaBannerTimer = Math.max(0, state.areaBannerTimer - 1);
   state.powerUpNoticeTimer = Math.max(0, state.powerUpNoticeTimer - 1);
+  state.bossWarningTimer = Math.max(0, state.bossWarningTimer - 1);
   state.cameraShake = Math.max(0, state.cameraShake - 0.4);
+  state.damageFlashTimer = Math.max(0, state.damageFlashTimer - 1);
+
+  if (state.bossSpawnQueued && state.bossWarningTimer === 0 && !state.bossActive) {
+    spawnBoss();
+  }
 
   updateStageProgress();
   updatePlayer(player);
@@ -279,7 +291,7 @@ function update() {
 }
 
 function updateStageProgress() {
-  if (state.bossActive) {
+  if (state.bossActive || state.bossSpawnQueued) {
     return;
   }
 
@@ -292,7 +304,7 @@ function updateStageProgress() {
     state.areaFrame = 0;
     state.areaIndex += 1;
     if (state.areaIndex >= AREAS.length) {
-      startBoss();
+      startBossWarning();
       return;
     }
     state.noteTimer = GAME.noteDuration;
@@ -300,11 +312,22 @@ function updateStageProgress() {
   }
 }
 
-function startBoss() {
+function startBossWarning() {
+  state.bossSpawnQueued = true;
+  state.bossWarningTimer = 96;
+  state.areaIndex = AREAS.length - 1;
+  state.areaBannerTimer = 0;
+  state.noteTimer = 0;
+  state.cameraShake = 6;
+}
+
+function spawnBoss() {
+  state.bossSpawnQueued = false;
   state.bossActive = true;
   state.areaIndex = AREAS.length - 1;
   state.areaBannerTimer = 240;
   state.noteTimer = 200;
+  state.cameraShake = 10;
   state.boss = {
     x: GAME.width + 140,
     y: GAME.height / 2,
@@ -386,21 +409,56 @@ function getMovementInput() {
 }
 
 function firePlayerShot(player) {
-  state.playerShots.push(makeShot(player.x + 30, player.y - 1, 11, 0, player.needleLevel, "needle"));
+  const shotOriginX = player.x + player.w * 0.94;
+  const shotOriginY = player.y - player.h * 0.06;
+  state.playerShots.push(makeShot(shotOriginX, shotOriginY, 11, 0, player.needleLevel, "needle"));
+  spawnMuzzleFlash(shotOriginX, shotOriginY, "#9ff7ff");
   if (player.needleLevel >= 2) {
-    state.playerShots.push(makeShot(player.x + 30, player.y + 5, 11, 0, player.needleLevel, "needle"));
+    state.playerShots.push(makeShot(shotOriginX, shotOriginY + 6, 11, 0, player.needleLevel, "needle"));
   }
   if (player.capsuleShot) {
-    state.playerShots.push(makeShot(player.x + 32, player.y + 2, 8, 0, 4, "capsule"));
+    state.playerShots.push(makeShot(shotOriginX + 2, shotOriginY + 3, 8, 0, 4, "capsule"));
   }
   if (player.sprayShot) {
-    state.playerShots.push(makeShot(player.x + 28, player.y + 1, 9.5, -1.4, 1, "spray"));
-    state.playerShots.push(makeShot(player.x + 28, player.y + 1, 9.5, 1.4, 1, "spray"));
+    state.playerShots.push(makeShot(shotOriginX, shotOriginY + 2, 9.5, -1.4, 1, "spray"));
+    state.playerShots.push(makeShot(shotOriginX, shotOriginY + 2, 9.5, 1.4, 1, "spray"));
   }
 }
 
 function makeShot(x, y, vx, vy, damage, type) {
-  return { x, y, vx, vy, damage, type, r: type === "capsule" ? 8 : 4 };
+  return { x, y, vx, vy, damage, type, r: type === "capsule" ? 8 : type === "spray" ? 3 : 4 };
+}
+
+function spawnMuzzleFlash(x, y, color) {
+  for (let i = 0; i < 5; i += 1) {
+    state.particles.push({
+      x,
+      y,
+      vx: (Math.random() - 0.1) * 1.5,
+      vy: (Math.random() - 0.5) * 1.4,
+      life: 5 + Math.random() * 4,
+      color,
+      size: 3 + Math.random() * 2,
+      kind: i === 0 ? "ring" : "spark",
+      alpha: 0.9,
+    });
+  }
+}
+
+function spawnShotHitEffect(x, y) {
+  for (let i = 0; i < 7; i += 1) {
+    state.particles.push({
+      x,
+      y,
+      vx: (Math.random() - 0.5) * 2.4,
+      vy: (Math.random() - 0.5) * 2.4,
+      life: 8 + Math.random() * 6,
+      color: i % 2 ? "#a2f6ff" : "#ffffff",
+      size: 2 + Math.random() * 2,
+      kind: "spark",
+      alpha: 0.85,
+    });
+  }
 }
 
 function useBomb() {
@@ -606,6 +664,7 @@ function updateHazards() {
     hazard.x += hazard.vx;
     if (hazard.kind === "bubble") {
       hazard.y += Math.sin((state.frame + hazard.r) * 0.05) * 0.7;
+      hazard.r += Math.sin(state.frame * 0.04 + hazard.x * 0.01) * 0.03;
     }
   }
 
@@ -639,13 +698,13 @@ function handleCollisions() {
       if (hitCircleRect(shot.x, shot.y, shot.r, toRect(enemy))) {
         shot.hit = true;
         enemy.hp -= shot.damage;
-        explodeAt(shot.x, shot.y, 4, "#ffd0de");
+        spawnShotHitEffect(shot.x, shot.y);
       }
     }
     if (state.boss && hitCircleRect(shot.x, shot.y, shot.r, toRect(state.boss))) {
       shot.hit = true;
       state.boss.hp -= shot.damage;
-      explodeAt(shot.x, shot.y, 4, "#fff0aa");
+      spawnShotHitEffect(shot.x, shot.y);
     }
   }
 
@@ -736,6 +795,7 @@ function damagePlayer() {
   player.lives -= 1;
   player.invuln = GAME.invulnDuration;
   state.cameraShake = 10;
+  state.damageFlashTimer = 10;
   explodeAt(player.x, player.y, 18, "#ffffff");
   if (player.lives <= 0) {
     state.scene = "gameover";
@@ -752,6 +812,8 @@ function explodeAt(x, y, spread, color) {
       life: 18 + Math.random() * 20,
       color,
       size: 2 + Math.random() * 4,
+      kind: "burst",
+      alpha: 0.7,
     });
   }
 }
@@ -1008,6 +1070,16 @@ function drawNonDangerEffects() {
     for (let i = 0; i < 5; i += 1) {
       ctx.beginPath();
       ctx.arc(140 + i * 180 - ((state.frame * 0.8) % 160), 120 + (i % 2) * 140, 12 + (i % 2) * 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  if (area.id === "stomach") {
+    for (let i = 0; i < 4; i += 1) {
+      const x = 180 + i * 180 - ((state.frame * 1.1) % 120);
+      const y = 380 + Math.sin(state.frame * 0.05 + i) * 18;
+      ctx.fillStyle = "rgba(235, 255, 155, 0.12)";
+      ctx.beginPath();
+      ctx.arc(x, y, 10 + (i % 2) * 4, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -1495,6 +1567,9 @@ function drawBossAsset(boss) {
 
 function drawPlayerShot(shot) {
   if (shot.type === "capsule") {
+    ctx.save();
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = "rgba(103, 244, 255, 0.8)";
     ctx.fillStyle = "#8af8ff";
     ctx.beginPath();
     ctx.ellipse(shot.x, shot.y, 10, 6, 0, 0, Math.PI * 2);
@@ -1502,14 +1577,46 @@ function drawPlayerShot(shot) {
     ctx.strokeStyle = "#f3ffff";
     ctx.lineWidth = 2;
     ctx.stroke();
+    ctx.restore();
     return;
   }
-  ctx.strokeStyle = shot.type === "spray" ? "#fff0a8" : "#9ff3ff";
-  ctx.lineWidth = shot.type === "helper" ? 4 : 5;
+  if (shot.type === "spray") {
+    ctx.save();
+    ctx.globalAlpha = 0.82;
+    ctx.fillStyle = "#eaffff";
+    ctx.beginPath();
+    ctx.arc(shot.x, shot.y, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#9ff3ff";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+  ctx.save();
+  ctx.shadowBlur = 12;
+  ctx.shadowColor = "rgba(100, 240, 255, 0.95)";
+  ctx.strokeStyle = "rgba(107, 244, 255, 0.75)";
+  ctx.lineWidth = shot.type === "helper" ? 6 : 7;
   ctx.beginPath();
-  ctx.moveTo(shot.x - 8, shot.y);
+  ctx.moveTo(shot.x - 10, shot.y);
+  ctx.lineTo(shot.x + 9, shot.y);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = shot.type === "helper" ? 2 : 2.4;
+  ctx.beginPath();
+  ctx.moveTo(shot.x - 7, shot.y);
   ctx.lineTo(shot.x + 8, shot.y);
   ctx.stroke();
+  ctx.globalAlpha = 0.28;
+  ctx.strokeStyle = "#9ff3ff";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(shot.x - 16, shot.y);
+  ctx.lineTo(shot.x - 5, shot.y);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawEnemyShot(shot) {
@@ -1552,10 +1659,25 @@ function drawCapsule(capsule) {
 }
 
 function drawParticle(particle) {
-  ctx.globalAlpha = 0.6;
-  ctx.fillStyle = particle.color;
-  ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
-  ctx.globalAlpha = 1;
+  const alpha = particle.alpha ?? 0.6;
+  ctx.save();
+  ctx.globalAlpha = alpha * Math.min(1, particle.life / 10);
+  if (particle.kind === "ring") {
+    ctx.strokeStyle = particle.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(particle.x, particle.y, particle.size + (10 - particle.life) * 0.8, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (particle.kind === "spark") {
+    ctx.fillStyle = particle.color;
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = particle.color;
+    ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
+  } else {
+    ctx.fillStyle = particle.color;
+    ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
+  }
+  ctx.restore();
 }
 
 function drawUi() {
@@ -1564,17 +1686,20 @@ function drawUi() {
     return;
   }
 
-  ctx.fillStyle = "rgba(8, 12, 20, 0.62)";
-  ctx.fillRect(12, 10, GAME.width - 24, 34);
+  ctx.fillStyle = "rgba(6, 12, 18, 0.78)";
+  ctx.fillRect(12, 10, GAME.width - 24, 36);
+  ctx.strokeStyle = "rgba(109, 240, 255, 0.28)";
+  ctx.strokeRect(12, 10, GAME.width - 24, 36);
   ctx.fillStyle = "#f7f7ff";
   ctx.font = "16px sans-serif";
   ctx.fillText(`SCORE ${String(state.score).padStart(6, "0")}`, 24, 32);
   ctx.fillText(`LIFE ${state.player.lives}`, 220, 32);
   ctx.fillText(`BOMB ${state.player.bombs}`, 320, 32);
+  ctx.fillStyle = "#8ef6ff";
   ctx.fillText(`AREA ${getCurrentArea().name}`, 430, 32);
 
   if (state.boss) {
-    ctx.fillStyle = "rgba(255,255,255,0.2)";
+    ctx.fillStyle = "rgba(255,255,255,0.16)";
     ctx.fillRect(680, 18, 240, 16);
     ctx.fillStyle = "#ff6a84";
     ctx.fillRect(680, 18, 240 * (state.boss.hp / state.boss.maxHp), 16);
@@ -1589,17 +1714,28 @@ function drawUi() {
 function drawPowerUpGauge() {
   const mobileLike = window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
   const y = mobileLike ? GAME.height - 74 : GAME.height - 36;
-  ctx.fillStyle = "rgba(8, 12, 20, 0.74)";
-  ctx.fillRect(120, y - 12, 720, 24);
+  ctx.fillStyle = "rgba(8, 12, 20, 0.82)";
+  ctx.fillRect(116, y - 16, 728, 32);
+  ctx.strokeStyle = "rgba(91, 239, 255, 0.35)";
+  ctx.strokeRect(116, y - 16, 728, 32);
   const slotWidth = 720 / POWER_ORDER.length;
   POWER_ORDER.forEach((name, index) => {
     const x = 120 + slotWidth * index;
     const activeIndex = state.player.powerLevel % POWER_ORDER.length;
-    ctx.fillStyle = activeIndex === index ? "rgba(255, 209, 93, 0.8)" : "rgba(255,255,255,0.12)";
-    ctx.fillRect(x + 2, y - 10, slotWidth - 4, 20);
-    ctx.fillStyle = "#101420";
+    const isActive = activeIndex === index;
+    if (isActive) {
+      const pulse = 0.72 + Math.sin(state.frame * 0.18) * 0.18;
+      ctx.fillStyle = `rgba(255, 209, 93, ${pulse})`;
+      ctx.fillRect(x + 2, y - 12, slotWidth - 4, 24);
+      ctx.fillStyle = "rgba(255,255,255,0.18)";
+      ctx.fillRect(x + 6 + Math.sin(state.frame * 0.1 + index) * 8, y - 11, 18, 22);
+    } else {
+      ctx.fillStyle = "rgba(255,255,255,0.1)";
+      ctx.fillRect(x + 2, y - 12, slotWidth - 4, 24);
+    }
+    ctx.fillStyle = isActive ? "#11131a" : "#7d8a9c";
     ctx.font = "12px sans-serif";
-    ctx.fillText(name, x + 14, y + 4);
+    ctx.fillText(name, x + 14, y + 5);
   });
 }
 
@@ -1637,13 +1773,19 @@ function drawOverlays() {
 
   if (state.areaBannerTimer > 0) {
     const label = getAreaLabel();
-    ctx.fillStyle = "rgba(10, 14, 20, 0.52)";
-    ctx.fillRect(228, 180, 504, 86);
-    ctx.strokeStyle = "rgba(255,255,255,0.22)";
-    ctx.strokeRect(228, 180, 504, 86);
+    const fade = Math.min(1, state.areaBannerTimer / 180);
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.fillStyle = "rgba(10, 14, 20, 0.64)";
+    ctx.fillRect(210, 172, 540, 94);
+    ctx.strokeStyle = "rgba(109, 240, 255, 0.34)";
+    ctx.strokeRect(210, 172, 540, 94);
+    ctx.fillStyle = "rgba(255, 104, 132, 0.88)";
+    ctx.fillRect(224, 188, 8, 62);
     ctx.fillStyle = "rgba(255,255,255,0.96)";
-    ctx.font = "bold 32px sans-serif";
-    ctx.fillText(label, 288, 232);
+    ctx.font = "bold 36px sans-serif";
+    ctx.fillText(label, 254, 228);
+    ctx.restore();
   }
 
   if (state.noteTimer > 0) {
@@ -1659,6 +1801,25 @@ function drawOverlays() {
     ctx.fillStyle = "#8ef6ff";
     ctx.font = "bold 20px sans-serif";
     ctx.fillText(state.powerUpNoticeText, 354, 128);
+  }
+
+  if (state.bossWarningTimer > 0) {
+    const pulse = Math.floor(state.frame / 6) % 2 === 0;
+    ctx.fillStyle = pulse ? "rgba(20, 0, 0, 0.38)" : "rgba(0, 0, 0, 0.22)";
+    ctx.fillRect(0, 0, GAME.width, GAME.height);
+    ctx.fillStyle = "rgba(120, 0, 0, 0.72)";
+    ctx.fillRect(0, 218, GAME.width, 56);
+    ctx.strokeStyle = "#ffb3bf";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(0, 218, GAME.width, 56);
+    ctx.fillStyle = "#fff2f4";
+    ctx.font = "bold 34px sans-serif";
+    ctx.fillText("WARNING", 386, 256);
+  }
+
+  if (state.damageFlashTimer > 0) {
+    ctx.fillStyle = `rgba(255, 60, 60, ${state.damageFlashTimer / 34})`;
+    ctx.fillRect(0, 0, GAME.width, GAME.height);
   }
 
   if (state.scene === "gameover") {
