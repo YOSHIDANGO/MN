@@ -105,6 +105,131 @@ const PATIENTS = [
       stomachTintBoost: 0.18,
     },
   },
+  {
+    id: "Patient 03",
+    name: "Kobayashi Ren",
+    age: "34",
+    shortDescription: "Circulatory abnormalities causing unstable heartbeat.",
+    symptoms: ["Palpitations", "Chest pressure", "Shortness of breath"],
+    diagnosis: "Cardiac arrhythmia",
+    mission: "Stabilize blood circulation",
+    threat: "PULSE / CLOT",
+    difficulty: "HARD",
+    routeType: "CIRCULATORY",
+    route: ["vessel", "heart"],
+    condition: "smoker",
+    unlocked: true,
+    selectTheme: {
+        accent: "#ff6b6b",
+        secondary: "#ffb36b",
+        glow: "rgba(255, 107, 107, 0.28)",
+    },
+    result: {
+        removal: "84%",
+        inflammation: "Stabilized",
+        status: "Monitoring",
+    },
+    learningSummary: [
+        "Blood vessels transport oxygen and nutrients through the body",
+        "Irregular heartbeat can disrupt blood circulation",
+        "Blood clots may block vessels and damage organs",
+        "The heart rhythm is essential for stable circulation",
+        "Smoking increases cardiovascular risk",
+    ],
+    areaDuration: 760,
+    bgmTheme: "heart",
+    stageModifier: {
+        areaDurationByArea: {
+        heart: 920,
+        },
+        stomachAcidDamageInterval: 18,
+        stomachTintBoost: 0,
+    },
+    },
+
+    {
+    id: "Patient 04",
+    name: "Mizuno Yui",
+    age: "19",
+    shortDescription: "Neurological disorder causing hallucinations and migraines.",
+    symptoms: ["Headache", "Hallucination", "Blurred vision"],
+    diagnosis: "Neural signal abnormality",
+    mission: "Suppress neural malfunction",
+    threat: "GLITCH / HALLUCINATION",
+    difficulty: "HARD",
+    routeType: "NEURAL",
+    route: ["brain"],
+    condition: "fever",
+    unlocked: true,
+    selectTheme: {
+        accent: "#9f8eff",
+        secondary: "#6be8ff",
+        glow: "rgba(159, 142, 255, 0.28)",
+    },
+    result: {
+        removal: "79%",
+        inflammation: "Suppressed",
+        status: "Recovery",
+    },
+    learningSummary: [
+        "The brain controls signals throughout the body",
+        "Neurons communicate using electrical impulses",
+        "Hallucinations may occur when neural signals malfunction",
+        "Brain tissue is extremely sensitive to inflammation",
+        "The nervous system processes sensory information rapidly",
+    ],
+    areaDuration: 760,
+    bgmTheme: "brain",
+    stageModifier: {
+        areaDurationByArea: {
+        brain: 980,
+        },
+        stomachAcidDamageInterval: 18,
+        stomachTintBoost: 0,
+    },
+    },
+
+    {
+    id: "Patient 05",
+    name: "Shimizu Haru",
+    age: "27",
+    shortDescription: "Peripheral nerve inflammation causing numbness.",
+    symptoms: ["Numbness", "Pain", "Muscle weakness"],
+    diagnosis: "Peripheral nerve inflammation",
+    mission: "Repair damaged nerve signals",
+    threat: "ELECTRIC / SHOCK",
+    difficulty: "NORMAL",
+    routeType: "NERVE",
+    route: ["nerve"],
+    condition: "dehydration",
+    unlocked: true,
+    selectTheme: {
+        accent: "#7fe0ff",
+        secondary: "#8effc8",
+        glow: "rgba(127, 224, 255, 0.26)",
+    },
+    result: {
+        removal: "90%",
+        inflammation: "Improving",
+        status: "Recovered",
+    },
+    learningSummary: [
+        "Peripheral nerves carry signals between the brain and body",
+        "Inflamed nerves can cause pain and numbness",
+        "Electrical signals travel rapidly through nerve tissue",
+        "Hydration helps maintain stable body function",
+        "The nervous system reacts quickly to damage",
+    ],
+    areaDuration: 700,
+    bgmTheme: "nerve",
+    stageModifier: {
+        areaDurationByArea: {
+        nerve: 860,
+        },
+        stomachAcidDamageInterval: 18,
+        stomachTintBoost: 0,
+    },
+    },
 ];
 const ASSET_PATHS = {
   player: "assets/player_nurse.png",
@@ -3640,9 +3765,11 @@ function drawPatientSelectScreen() {
 
   PATIENTS.forEach((entry, index) => {
     const isSelected = index === state.currentPatientIndex;
-    const cardX = 96 + index * 372;
+    const offset = getPatientSelectOffset(index);
+    if (Math.abs(offset) > 1) return;
+    const cardX = 355 + offset * 260;
     const cardY = 132;
-    const cardW = 340;
+    const cardW = 250;
     const cardH = 240;
     const entryTheme = entry.selectTheme || theme;
     ctx.fillStyle = isSelected ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.025)";
@@ -3651,27 +3778,27 @@ function drawPatientSelectScreen() {
     ctx.lineWidth = isSelected ? 3 : 1.5;
     ctx.strokeRect(cardX, cardY, cardW, cardH);
     if (isSelected) {
-      drawPatientCaseSilhouette(entry, cardX + 214, cardY + 124, cardW, cardH, entryTheme);
+      drawPatientCaseSilhouette(entry, cardX + 166, cardY + 124, cardW, cardH, entryTheme);
       ctx.fillStyle = entryTheme.glow;
       ctx.fillRect(cardX + 8, cardY + 8, cardW - 16, 14);
       drawScanLines(cardX + 6, cardY + 6, cardW - 12, cardH - 12, 9);
     }
 
     ctx.fillStyle = isSelected ? "#ffffff" : "#b2bfcc";
-    ctx.font = "bold 20px monospace";
+    ctx.font = "bold 18px monospace";
     ctx.fillText(`CASE ${String(index + 1).padStart(2, "0")}`, cardX + 18, cardY + 34);
-    ctx.font = "bold 24px sans-serif";
+    ctx.font = "bold 20px sans-serif";
     ctx.fillText(entry.name, cardX + 18, cardY + 72);
     ctx.fillStyle = isSelected ? entryTheme.accent : "#93a8bb";
-    ctx.font = "bold 18px monospace";
-    ctx.fillText(entry.diagnosis.toUpperCase(), cardX + 18, cardY + 104);
+    ctx.font = "bold 14px monospace";
+    drawWrappedText(entry.diagnosis.toUpperCase(), cardX + 18, cardY + 96, cardW - 36, 16, 13);
     ctx.fillStyle = isSelected ? "#dffcff" : "#9baaba";
-    ctx.font = "16px sans-serif";
-    drawWrappedText(entry.shortDescription, cardX + 18, cardY + 136, cardW - 36, 20, 16);
+    ctx.font = "14px sans-serif";
+    drawWrappedText(entry.shortDescription, cardX + 18, cardY + 136, cardW - 36, 18, 14);
     ctx.fillStyle = entryTheme.secondary;
     ctx.font = "12px monospace";
     ctx.fillText(`ROUTE: ${getRouteType(entry)}`, cardX + 18, cardY + 178);
-    drawRouteIconStrip(entry, cardX + 210, cardY + 166, entryTheme);
+    drawRouteIconStrip(entry, cardX + 142, cardY + 166, entryTheme);
     ctx.fillText(`CONDITION: ${getConditionLabel(entry)}`, cardX + 18, cardY + 200);
     ctx.fillText(`DIFFICULTY: ${entry.difficulty}`, cardX + 18, cardY + 222);
     if (!entry.unlocked) {
@@ -3679,7 +3806,7 @@ function drawPatientSelectScreen() {
       ctx.fillRect(cardX, cardY, cardW, cardH);
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 28px monospace";
-      ctx.fillText("LOCKED", cardX + 110, cardY + 134);
+      ctx.fillText("LOCKED", cardX + 72, cardY + 134);
     } else if (isSelected && Math.floor(state.frame / 18) % 2 === 0) {
       ctx.fillStyle = entryTheme.accent;
       ctx.fillRect(cardX - 12, cardY + 16, 8, 36);
@@ -3699,6 +3826,15 @@ function drawPatientSelectScreen() {
   drawSelectArrowButton(26, 420, "<", theme, false);
   drawSelectArrowButton(894, 420, ">", theme, false);
   drawSelectArrowButton(454, 500, "OK", theme, true);
+}
+
+function getPatientSelectOffset(index) {
+  const total = PATIENTS.length;
+  if (!total) return 0;
+  let offset = index - state.currentPatientIndex;
+  if (offset > total / 2) offset -= total;
+  if (offset < -total / 2) offset += total;
+  return offset;
 }
 
 function drawSelectArrowButton(x, y, label, theme, wide) {
