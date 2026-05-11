@@ -9,6 +9,10 @@
   noteDuration: 280,
   invulnDuration: 90,
   bossMaxHp: 340,
+  maxPlayerShots: 90,
+  maxEnemyShots: 90,
+  maxParticles: 180,
+  bossDefeatDuration: 120,
   maxBombs: 3,
   maxLives: 3,
   capsuleChance: 0.35,
@@ -20,19 +24,27 @@ const STEP_MS = 1000 / 60;
 const MAX_UPDATES_PER_FRAME = 5;
 
 const POWER_ORDER = ["SPEED", "NEEDLE", "CAPSULE", "SPRAY", "SHIELD", "HELPER"];
+const POWER_LABELS = {
+  SPEED: "速度",
+  NEEDLE: "針",
+  CAPSULE: "カプセル",
+  SPRAY: "噴霧",
+  SHIELD: "シールド",
+  HELPER: "支援",
+};
 
 const PATIENTS = [
   {
     id: "Patient 01",
     name: "Takahashi Mina",
     age: "17",
-    shortDescription: "Virus infection causing cough and fever.",
-    symptoms: ["High fever", "Cough", "Sore throat"],
-    diagnosis: "Common cold virus infection",
-    mission: "Eliminate the infection source",
-    threat: "COUGH / INFLAMMATION",
-    difficulty: "NORMAL",
-    routeType: "RESPIRATORY",
+    shortDescription: "咳と発熱を伴うウイルス感染症。",
+    symptoms: ["高熱", "咳", "喉の痛み"],
+    diagnosis: "風邪ウイルス感染",
+    mission: "感染源を除去せよ",
+    threat: "咳 / 炎症",
+    difficulty: "通常",
+    routeType: "呼吸器",
     route: ["mouth", "throat", "lung"],
     condition: "fever",
     unlocked: true,
@@ -43,15 +55,15 @@ const PATIENTS = [
     },
     result: {
       removal: "92%",
-      inflammation: "Success",
-      status: "Recovered",
+      inflammation: "制御成功",
+      status: "回復",
     },
     learningSummary: [
-      "Throat pain can be a sign of inflammation",
-      "Airborne pathogens can travel from the mouth to the lungs",
-      "In alveoli, the lungs exchange oxygen with the blood",
-      "The respiratory route carries air through the throat and airway",
-      "Immunity helps protect the body from viruses",
+      "喉の痛みは炎症のサインになる",
+      "空気中の病原体は口から肺へ到達することがある",
+      "肺胞では血液とのあいだで酸素交換が行われる",
+      "呼吸器ルートでは空気が喉や気道を通る",
+      "免疫はウイルスから体を守る働きを持つ",
     ],
     areaDuration: 720,
     bgmTheme: "cold",
@@ -67,13 +79,13 @@ const PATIENTS = [
     id: "Patient 02",
     name: "Sato Aoi",
     age: "22",
-    shortDescription: "Digestive trouble centered around the stomach.",
-    symptoms: ["Abdominal pain", "Nausea", "Stomach discomfort"],
-    diagnosis: "Food poisoning stomach trouble",
-    mission: "Remove stomach abnormalities",
-    threat: "ACID / TOXIN",
-    difficulty: "HARD",
-    routeType: "DIGESTIVE",
+    shortDescription: "胃を中心に消化器症状が出ている。",
+    symptoms: ["腹痛", "吐き気", "胃の不快感"],
+    diagnosis: "食中毒による胃腸障害",
+    mission: "胃腸内の異常を除去せよ",
+    threat: "胃酸 / 毒素",
+    difficulty: "難しい",
+    routeType: "消化器",
     route: ["mouth", "esophagus", "stomach", "intestine"],
     condition: "gastritis",
     unlocked: true,
@@ -84,16 +96,16 @@ const PATIENTS = [
     },
     result: {
       removal: "88%",
-      inflammation: "Improving",
-      status: "Observation",
+      inflammation: "改善傾向",
+      status: "経過観察",
     },
     learningSummary: [
-      "Food poisoning can inflame the stomach and intestines",
-      "Stomach acid protects the body but is dangerous in-mission",
-      "The stomach has a powerful acidic environment",
-      "The small intestine absorbs nutrients from digested food",
-      "Digestion organs work together to defend the body",
-      "Hydration and pain monitoring are also important",
+      "食中毒では胃や腸に炎症が起こることがある",
+      "胃酸は体を守る一方で作戦中は危険な環境になる",
+      "胃の中は強い酸性環境を持つ",
+      "小腸は消化された食物から栄養を吸収する",
+      "消化器は連携して体を守っている",
+      "水分補給と痛みの観察も重要",
     ],
     areaDuration: 720,
     bgmTheme: "foodpoisoning",
@@ -109,13 +121,13 @@ const PATIENTS = [
     id: "Patient 03",
     name: "Kobayashi Ren",
     age: "34",
-    shortDescription: "Circulatory abnormalities causing unstable heartbeat.",
-    symptoms: ["Palpitations", "Chest pressure", "Shortness of breath"],
-    diagnosis: "Cardiac arrhythmia",
-    mission: "Stabilize blood circulation",
-    threat: "PULSE / CLOT",
-    difficulty: "HARD",
-    routeType: "CIRCULATORY",
+    shortDescription: "循環器の異常により心拍が不安定。",
+    symptoms: ["動悸", "胸部圧迫感", "息切れ"],
+    diagnosis: "心拍リズム異常",
+    mission: "血流を安定化せよ",
+    threat: "脈動 / 血栓",
+    difficulty: "難しい",
+    routeType: "循環器",
     route: ["vessel", "heart"],
     condition: "smoker",
     unlocked: true,
@@ -126,15 +138,15 @@ const PATIENTS = [
     },
     result: {
         removal: "84%",
-        inflammation: "Stabilized",
-        status: "Monitoring",
+        inflammation: "安定化",
+        status: "監視中",
     },
     learningSummary: [
-        "Blood vessels transport oxygen and nutrients through the body",
-        "Irregular heartbeat can disrupt blood circulation",
-        "Blood clots may block vessels and damage organs",
-        "The heart rhythm is essential for stable circulation",
-        "Smoking increases cardiovascular risk",
+        "血管は酸素や栄養を全身へ運ぶ",
+        "不規則な心拍は血液循環を乱すことがある",
+        "血栓は血管を塞ぎ臓器に影響を与えることがある",
+        "心臓のリズムは安定した循環に欠かせない",
+        "喫煙は循環器リスクを高める",
     ],
     areaDuration: 760,
     bgmTheme: "heart",
@@ -151,13 +163,13 @@ const PATIENTS = [
     id: "Patient 04",
     name: "Mizuno Yui",
     age: "19",
-    shortDescription: "Neurological disorder causing hallucinations and migraines.",
-    symptoms: ["Headache", "Hallucination", "Blurred vision"],
-    diagnosis: "Neural signal abnormality",
-    mission: "Suppress neural malfunction",
-    threat: "GLITCH / HALLUCINATION",
-    difficulty: "HARD",
-    routeType: "NEURAL",
+    shortDescription: "幻覚と片頭痛を伴う神経信号の異常。",
+    symptoms: ["頭痛", "幻覚", "視界のぼやけ"],
+    diagnosis: "神経信号異常",
+    mission: "神経の誤作動を抑制せよ",
+    threat: "ノイズ / 幻覚",
+    difficulty: "難しい",
+    routeType: "神経系",
     route: ["brain"],
     condition: "fever",
     unlocked: true,
@@ -168,15 +180,15 @@ const PATIENTS = [
     },
     result: {
         removal: "79%",
-        inflammation: "Suppressed",
-        status: "Recovery",
+        inflammation: "抑制",
+        status: "回復中",
     },
     learningSummary: [
-        "The brain controls signals throughout the body",
-        "Neurons communicate using electrical impulses",
-        "Hallucinations may occur when neural signals malfunction",
-        "Brain tissue is extremely sensitive to inflammation",
-        "The nervous system processes sensory information rapidly",
+        "脳は全身の信号を制御している",
+        "神経細胞は電気信号で情報を伝える",
+        "神経信号が乱れると幻覚が起こることがある",
+        "脳組織は炎症にとても敏感",
+        "神経系は感覚情報を素早く処理する",
     ],
     areaDuration: 760,
     bgmTheme: "brain",
@@ -193,13 +205,13 @@ const PATIENTS = [
     id: "Patient 05",
     name: "Shimizu Haru",
     age: "27",
-    shortDescription: "Peripheral nerve inflammation causing numbness.",
-    symptoms: ["Numbness", "Pain", "Muscle weakness"],
-    diagnosis: "Peripheral nerve inflammation",
-    mission: "Repair damaged nerve signals",
-    threat: "ELECTRIC / SHOCK",
-    difficulty: "NORMAL",
-    routeType: "NERVE",
+    shortDescription: "末梢神経の炎症によりしびれが発生。",
+    symptoms: ["しびれ", "痛み", "筋力低下"],
+    diagnosis: "末梢神経炎",
+    mission: "損傷した神経信号を修復せよ",
+    threat: "電流 / ショック",
+    difficulty: "通常",
+    routeType: "神経",
     route: ["nerve"],
     condition: "dehydration",
     unlocked: true,
@@ -210,15 +222,15 @@ const PATIENTS = [
     },
     result: {
         removal: "90%",
-        inflammation: "Improving",
-        status: "Recovered",
+        inflammation: "改善傾向",
+        status: "回復",
     },
     learningSummary: [
-        "Peripheral nerves carry signals between the brain and body",
-        "Inflamed nerves can cause pain and numbness",
-        "Electrical signals travel rapidly through nerve tissue",
-        "Hydration helps maintain stable body function",
-        "The nervous system reacts quickly to damage",
+        "末梢神経は脳と体のあいだで信号を運ぶ",
+        "神経の炎症は痛みやしびれを起こすことがある",
+        "電気信号は神経組織を高速で伝わる",
+        "水分は体の安定した働きを支える",
+        "神経系は損傷にすばやく反応する",
     ],
     areaDuration: 700,
     bgmTheme: "nerve",
@@ -239,17 +251,22 @@ const ASSET_PATHS = {
   patient_food_poisoning: "assets/patient_food_poisoning.png",
   bg_mouth: "assets/bg_mouth.png",
   bg_throat: "assets/bg_throat.png",
+  bg_lung: "assets/bg_lung.png",
   bg_esophagus: "assets/bg_esophagus.png",
   bg_stomach: "assets/bg_stomach.png",
   bg_intestine: "assets/bg_intestine.png",
+  bg_vessel: "assets/bg_vessel.png",
+  bg_heart: "assets/bg_heart.png",
+  bg_brain: "assets/bg_brain.png",
+  bg_nerve: "assets/bg_nerve.png",
   bg_nest: "assets/bg_nest.png",
 };
 
 const AREAS = [
   {
     id: "mouth",
-    name: "Mouth",
-    note: "The mouth contains many bacteria. Keeping it clean helps protect the body.",
+    name: "口内",
+    note: "口内には多くの細菌が存在する。清潔を保つことは体を守る助けになる。",
     colorA: "#7d233d",
     colorB: "#ff8ea6",
     accent: "#ffe2ea",
@@ -260,8 +277,8 @@ const AREAS = [
   },
   {
     id: "throat",
-    name: "Throat",
-    note: "Throat pain can be a sign that the body is reacting to viruses.",
+    name: "喉",
+    note: "喉の痛みは、体がウイルスに反応しているサインになることがある。",
     colorA: "#8f2f3b",
     colorB: "#d45666",
     accent: "#ffcccf",
@@ -272,8 +289,8 @@ const AREAS = [
   },
   {
     id: "lung",
-    name: "Lung",
-    note: "Air carries oxygen through the lungs, but pathogens can arrive with that airflow.",
+    name: "肺",
+    note: "肺は空気から酸素を取り込むが、病原体も気流に乗って到達することがある。",
     colorA: "#143553",
     colorB: "#7ec8dc",
     accent: "#d8fbff",
@@ -284,8 +301,8 @@ const AREAS = [
   },
   {
     id: "esophagus",
-    name: "Esophagus",
-    note: "The esophagus moves food toward the stomach using muscle motion.",
+    name: "食道",
+    note: "食道は筋肉の動きで食物を胃へ送り込む。",
     colorA: "#3f1720",
     colorB: "#8e3544",
     accent: "#ffb8c2",
@@ -296,8 +313,8 @@ const AREAS = [
   },
   {
     id: "stomach",
-    name: "Stomach",
-    note: "Stomach acid helps digest food and reduce bacteria, but it is dangerous in-mission.",
+    name: "胃",
+    note: "胃酸は食物の消化と殺菌を助けるが、作戦中は危険な環境になる。",
     colorA: "#543824",
     colorB: "#cf8a49",
     accent: "#ffe4ad",
@@ -308,8 +325,8 @@ const AREAS = [
   },
   {
     id: "intestine",
-    name: "Small Intestine",
-    note: "The small intestine absorbs nutrients and supports the body.",
+    name: "小腸",
+    note: "小腸は栄養を吸収し、体を支える重要な働きを持つ。",
     colorA: "#6a3b1f",
     colorB: "#c96b40",
     accent: "#ffe0ba",
@@ -320,8 +337,8 @@ const AREAS = [
   },
   {
     id: "heart",
-    name: "Heart",
-    note: "The heart pumps blood through the body with steady rhythmic contractions.",
+    name: "心臓",
+    note: "心臓は一定のリズムで収縮し、血液を全身へ送り出す。",
     colorA: "#4f0715",
     colorB: "#c33245",
     accent: "#ffd6dc",
@@ -332,8 +349,8 @@ const AREAS = [
   },
   {
     id: "vessel",
-    name: "Blood Vessel",
-    note: "Blood vessels carry cells and nutrients through narrow high-flow passages.",
+    name: "血管",
+    note: "血管は細胞や栄養を運ぶ、高速で狭い通路である。",
     colorA: "#390711",
     colorB: "#a81828",
     accent: "#ffb8c0",
@@ -344,8 +361,8 @@ const AREAS = [
   },
   {
     id: "brain",
-    name: "Brain",
-    note: "The brain sends signals through complex networks, and noise can disrupt timing.",
+    name: "脳",
+    note: "脳は複雑なネットワークで信号を送り、ノイズはそのタイミングを乱すことがある。",
     colorA: "#1d204e",
     colorB: "#8a5fd1",
     accent: "#e4dcff",
@@ -356,8 +373,8 @@ const AREAS = [
   },
   {
     id: "nerve",
-    name: "Nerve",
-    note: "Nerves transmit electrical signals in fast pulses through branching pathways.",
+    name: "神経",
+    note: "神経は枝分かれした経路を通じて、電気信号を高速に伝える。",
     colorA: "#082a45",
     colorB: "#2aa6c8",
     accent: "#d7fbff",
@@ -368,8 +385,8 @@ const AREAS = [
   },
   {
     id: "nest",
-    name: "Infection Nest",
-    note: "Viruses can gather and spread. The immune system fights back.",
+    name: "感染巣",
+    note: "ウイルスは集まり増殖することがある。免疫はそれに対抗して働く。",
     colorA: "#431047",
     colorB: "#b53f6b",
     accent: "#ffd0ef",
@@ -383,17 +400,17 @@ const AREAS = [
 const AREA_LOOKUP = new Map(AREAS.map((area) => [area.id, area]));
 
 const ROUTE_LABELS = {
-  mouth: "ORAL",
-  throat: "THROAT",
-  lung: "LUNG",
-  esophagus: "ESOPHAGUS",
-  stomach: "STOMACH",
-  intestine: "INTESTINE",
-  heart: "HEART",
-  vessel: "VESSEL",
-  brain: "BRAIN",
-  nerve: "NERVE",
-  nest: "INFECTION NEST",
+  mouth: "口腔",
+  throat: "喉",
+  lung: "肺",
+  esophagus: "食道",
+  stomach: "胃",
+  intestine: "小腸",
+  heart: "心臓",
+  vessel: "血管",
+  brain: "脳",
+  nerve: "神経",
+  nest: "感染巣",
 };
 
 const ROUTE_ICONS = {
@@ -420,7 +437,7 @@ const ROUTES = {
     bossHp: 1,
     gimmickUpdate: null,
     events: [],
-    briefingText: "Respiratory airflow makes movement floaty inside the lungs.",
+    briefingText: "呼吸の気流により、肺の内部では浮遊感のある移動になる。",
   },
   stomach: {
     background: "stomach",
@@ -432,7 +449,7 @@ const ROUTES = {
     bossHp: 1.02,
     gimmickUpdate: null,
     events: [],
-    briefingText: "Acid waves and bubbles make the stomach unstable but readable.",
+    briefingText: "胃酸の波と泡により、胃の内部は不安定だが予測可能な環境になる。",
   },
   heart: {
     background: "heart",
@@ -444,7 +461,7 @@ const ROUTES = {
     bossHp: 1.08,
     gimmickUpdate: updateHeartRoute,
     events: ["heartbeatOverdrive", "bloodRush"],
-    briefingText: "Heartbeats briefly accelerate flow and enemy movement.",
+    briefingText: "心拍に合わせて血流と敵の動きが一時的に速くなる。",
   },
   vessel: {
     background: "vessel",
@@ -456,7 +473,7 @@ const ROUTES = {
     bossHp: 1.05,
     gimmickUpdate: updateVesselRoute,
     events: ["narrowFlow", "clotRain"],
-    briefingText: "Fast blood flow creates a narrow evasive route.",
+    briefingText: "高速の血流により、狭い通路を回避しながら進むルートになる。",
   },
   brain: {
     background: "brain",
@@ -467,8 +484,8 @@ const ROUTES = {
     tint: "rgba(170, 132, 255, 0.045)",
     bossHp: 1.04,
     gimmickUpdate: updateBrainRoute,
-    events: ["hallucinationBurst", "neuralConfusion"],
-    briefingText: "Neural noise may briefly invert input and show false alerts.",
+    events: ["hallucinationBurst"],
+    briefingText: "神経ノイズにより、偽の警告や表示の乱れが発生する。",
   },
   nerve: {
     background: "nerve",
@@ -480,13 +497,13 @@ const ROUTES = {
     bossHp: 1.05,
     gimmickUpdate: updateNerveRoute,
     events: ["electricStorm", "synapseFreeze"],
-    briefingText: "Electric pulses create timed laser hazards.",
+    briefingText: "電気パルスにより、タイミング式のレーザー障害物が発生する。",
   },
 };
 
 const ROUTE_EVENTS = {
   heartbeatOverdrive: {
-    label: "HEART RATE ELEVATED",
+    label: "心拍数上昇",
     duration: 210,
     cue: "pulse",
     enemySpeed: 1.08,
@@ -496,7 +513,7 @@ const ROUTE_EVENTS = {
     particleColor: "#ffc1ca",
   },
   bloodRush: {
-    label: "BLOOD FLOW SURGE",
+    label: "血流急加速",
     duration: 210,
     cue: "bloodRush",
     scrollBonus: 0.55,
@@ -505,7 +522,7 @@ const ROUTE_EVENTS = {
     particleColor: "#ff8c9c",
   },
   narrowFlow: {
-    label: "VESSEL CONSTRICTION",
+    label: "血管収縮",
     duration: 220,
     cue: "bloodRush",
     narrowBoost: 16,
@@ -514,7 +531,7 @@ const ROUTE_EVENTS = {
     particleColor: "#ff9aa8",
   },
   clotRain: {
-    label: "MICRO CLOT DRIFT",
+    label: "小血栓流入",
     duration: 190,
     cue: "bloodRush",
     spawnType: "microClot",
@@ -523,7 +540,7 @@ const ROUTE_EVENTS = {
     particleColor: "#ff8794",
   },
   hallucinationBurst: {
-    label: "FALSE SIGNAL BURST",
+    label: "偽信号バースト",
     duration: 170,
     cue: "glitch",
     fakeWarning: true,
@@ -531,17 +548,8 @@ const ROUTE_EVENTS = {
     particleRate: 16,
     particleColor: "#dfd6ff",
   },
-  neuralConfusion: {
-    label: "NEURAL CONFUSION",
-    duration: 150,
-    cue: "glitch",
-    invertInput: true,
-    uiNoise: 12,
-    particleRate: 22,
-    particleColor: "#c7b8ff",
-  },
   electricStorm: {
-    label: "ELECTRIC STORM",
+    label: "電流嵐",
     duration: 210,
     cue: "electric",
     laserInterval: 82,
@@ -550,7 +558,7 @@ const ROUTE_EVENTS = {
     particleColor: "#cafbff",
   },
   synapseFreeze: {
-    label: "SYNAPSE FREEZE",
+    label: "シナプス凍結",
     duration: 70,
     cue: "electric",
     freezeFrames: 5,
@@ -562,8 +570,8 @@ const ROUTE_EVENTS = {
 
 const CONDITION_MODIFIERS = {
   healthy: {
-    label: "HEALTHY",
-    warning: "STABLE",
+    label: "健康",
+    warning: "安定",
     tint: "rgba(120, 236, 255, 0.025)",
     particleColor: "#c8fff2",
     particleRate: 0,
@@ -573,8 +581,8 @@ const CONDITION_MODIFIERS = {
     ambience: null,
   },
   fever: {
-    label: "FEVER",
-    warning: "TEMP HIGH",
+    label: "発熱",
+    warning: "体温上昇",
     tint: "rgba(255, 92, 116, 0.055)",
     particleColor: "#ffb0a8",
     particleRate: 150,
@@ -584,8 +592,8 @@ const CONDITION_MODIFIERS = {
     ambience: "feverHum",
   },
   smoker: {
-    label: "SMOKER",
-    warning: "AIRWAY IRRITATION",
+    label: "喫煙傾向",
+    warning: "気道刺激",
     tint: "rgba(110, 120, 118, 0.055)",
     particleColor: "#c4c8bc",
     particleRate: 120,
@@ -595,8 +603,8 @@ const CONDITION_MODIFIERS = {
     ambience: "roughAir",
   },
   gastritis: {
-    label: "GASTRITIS",
-    warning: "MUCOSA IRRITATED",
+    label: "胃炎",
+    warning: "粘膜刺激",
     tint: "rgba(255, 184, 92, 0.06)",
     particleColor: "#ffe07a",
     particleRate: 110,
@@ -608,8 +616,8 @@ const CONDITION_MODIFIERS = {
     ambience: "acidMurmur",
   },
   dehydration: {
-    label: "DEHYDRATION",
-    warning: "FLUID LOW",
+    label: "脱水",
+    warning: "水分低下",
     tint: "rgba(255, 221, 142, 0.045)",
     particleColor: "#ffe7a8",
     particleRate: 135,
@@ -654,9 +662,11 @@ const state = {
   currentBgm: "normal",
   currentAmbience: "none",
   routePulseTimer: 0,
-  inputInvertTimer: 0,
   fakeWarningTimer: 0,
   routeScalePulse: 0,
+  bossDefeatTimer: 0,
+  defeatedBossX: 0,
+  defeatedBossY: 0,
   activeRouteEvent: null,
   routeEventCooldown: 0,
   routeEventsTriggered: [],
@@ -774,9 +784,11 @@ function resetGame(startScene = "playing") {
   state.currentBgm = "normal";
   state.currentAmbience = "none";
   state.routePulseTimer = 0;
-  state.inputInvertTimer = 0;
   state.fakeWarningTimer = 0;
   state.routeScalePulse = 0;
+  state.bossDefeatTimer = 0;
+  state.defeatedBossX = 0;
+  state.defeatedBossY = 0;
   state.activeRouteEvent = null;
   state.routeEventCooldown = 0;
   state.routeEventsTriggered = [];
@@ -848,13 +860,19 @@ function formatEntryRoute(patient = getCurrentPatient()) {
 }
 
 function getRouteLearningLine(patient = getCurrentPatient()) {
-  if (getRouteType(patient) === "RESPIRATORY") {
-    return "In the respiratory route, pathogens can ride airflow toward the lungs.";
+  if (getRouteType(patient) === "呼吸器") {
+    return "呼吸器ルートでは、病原体が気流に乗って肺へ到達することがある。";
   }
-  if (getRouteType(patient) === "DIGESTIVE") {
-    return "In the digestive route, contaminated food can move through the stomach and intestine.";
+  if (getRouteType(patient) === "消化器") {
+    return "消化器ルートでは、汚染された食物が胃や腸を通って影響を与える。";
   }
-  return "Different entry routes change which organs pathogens reach first.";
+  if (getRouteType(patient) === "循環器") {
+    return "循環器ルートでは、血流の乱れや血栓が全身への酸素供給に影響する。";
+  }
+  if (getRouteType(patient) === "神経系" || getRouteType(patient) === "神経") {
+    return "神経ルートでは、電気信号の乱れが感覚や運動に影響することがある。";
+  }
+  return "侵入ルートが変わると、病原体が最初に到達する器官も変わる。";
 }
 
 function getStageModifier() {
@@ -897,6 +915,10 @@ function getRouteConfig(area = getCurrentArea()) {
 function getCurrentPatientAssetKey(patient = getCurrentPatient()) {
   if (!patient) return null;
   return patient.id === "Patient 02" ? "patient_food_poisoning" : "patient_cold";
+}
+
+function getPatientDisplayId(patient = getCurrentPatient()) {
+  return String(patient.id || "").replace("Patient", "患者");
 }
 
 function getCurrentAreaDuration() {
@@ -1083,6 +1105,11 @@ function update() {
   updateRouteEffects(getCurrentArea());
   updateRouteEvent();
 
+  if (state.bossDefeatTimer > 0) {
+    updateBossDefeatSequence();
+    return;
+  }
+
   updateStageProgress();
   updatePlayer(player);
   updateHelper();
@@ -1149,7 +1176,6 @@ function updateAreaMotion() {
 
 function updateRouteEffects(area) {
   state.routePulseTimer = Math.max(0, state.routePulseTimer - 1);
-  state.inputInvertTimer = Math.max(0, state.inputInvertTimer - 1);
   state.fakeWarningTimer = Math.max(0, state.fakeWarningTimer - 1);
   state.routeScalePulse = Math.max(0, state.routeScalePulse - 0.05);
 
@@ -1191,7 +1217,6 @@ function startRouteEvent(eventId) {
   state.routeEventNoticeText = eventDef.label;
   state.uiNoiseTimer = Math.max(state.uiNoiseTimer, eventDef.uiNoise || 0);
   if (eventDef.fakeWarning) state.fakeWarningTimer = Math.max(state.fakeWarningTimer, 96);
-  if (eventDef.invertInput) state.inputInvertTimer = Math.max(state.inputInvertTimer, eventDef.duration);
   if (eventDef.freezeFrames) triggerHitStop(eventDef.freezeFrames);
   playRouteEventCue(eventDef.cue);
 }
@@ -1238,7 +1263,6 @@ function updateVesselRoute(area) {
 }
 
 function updateBrainRoute(area) {
-  if (state.frame % 420 === 0) state.inputInvertTimer = 90;
   if (state.frame % 300 === 0) state.fakeWarningTimer = 72;
 }
 
@@ -1259,6 +1283,37 @@ function spawnNerveLaser() {
     life: 120,
     warmup: 34,
   });
+}
+
+function updateBossDefeatSequence() {
+  state.bossDefeatTimer -= 1;
+  state.cameraShake = Math.max(0, state.cameraShake - 0.25);
+  state.screenFlashTimer = Math.max(0, state.screenFlashTimer - 1);
+  state.enemyShots = [];
+  state.enemies = [];
+  updateShots();
+  updateCapsules();
+  updateHazards();
+  updateParticles();
+  updateScorePopups();
+  cleanupEntities();
+
+  if (state.bossDefeatTimer % 14 === 0) {
+    const spread = 70 + (GAME.bossDefeatDuration - state.bossDefeatTimer) * 0.5;
+    explodeAt(
+      state.defeatedBossX + (Math.random() - 0.5) * spread,
+      state.defeatedBossY + (Math.random() - 0.5) * spread,
+      34 + Math.random() * 26,
+      state.bossDefeatTimer % 28 === 0 ? "#ffffff" : "#9ff7ff"
+    );
+  }
+
+  if (state.bossDefeatTimer <= 0) {
+    state.scene = "result";
+    state.gameOverTimer = 0;
+    state.screenFlashTimer = 12;
+    state.cameraShake = 0;
+  }
 }
 
 function updateStageProgress() {
@@ -1399,10 +1454,6 @@ function getMovementInput() {
   if (state.keys.down) y += 1;
   x += state.touchState.stick.dx;
   y += state.touchState.stick.dy;
-  if (state.inputInvertTimer > 0) {
-    x *= -1;
-    y *= -1;
-  }
   const length = Math.hypot(x, y);
   return length > 1 ? { x: x / length, y: y / length } : { x, y };
 }
@@ -1430,6 +1481,7 @@ function makeShot(x, y, vx, vy, damage, type) {
 }
 
 function spawnMuzzleFlash(x, y, color) {
+  if (state.bossActive && state.frame % 2 !== 0) return;
   for (let i = 0; i < 5; i += 1) {
     state.particles.push({
       x,
@@ -1446,7 +1498,8 @@ function spawnMuzzleFlash(x, y, color) {
 }
 
 function spawnShotHitEffect(x, y) {
-  for (let i = 0; i < 7; i += 1) {
+  const burstCount = state.bossActive ? 3 : 7;
+  for (let i = 0; i < burstCount; i += 1) {
     state.particles.push({
       x,
       y,
@@ -1679,15 +1732,21 @@ function updateBoss() {
     for (let i = 0; i < 5; i += 1) {
       explodeAt(boss.x + (Math.random() - 0.5) * 90, boss.y + (Math.random() - 0.5) * 90, 40 + i * 6, i % 2 ? "#ffffff" : "#9ff7ff");
     }
+    state.defeatedBossX = boss.x;
+    state.defeatedBossY = boss.y;
     state.boss = null;
     state.bossActive = false;
     state.bossDefeated = true;
+    state.bossDefeatTimer = GAME.bossDefeatDuration;
+    state.enemies = [];
+    state.enemyShots = [];
+    state.playerShots = [];
+    state.activeRouteEvent = null;
+    state.routeEventNoticeTimer = 0;
     setPatientBgm("clear");
     state.cameraShake = 18;
     state.screenFlashTimer = 18;
     triggerHitStop(8);
-    state.scene = "result";
-    state.gameOverTimer = 0;
     stopAreaAmbience();
   }
 }
@@ -1825,6 +1884,9 @@ function cleanupEntities() {
   state.capsules = state.capsules.filter((c) => !c.hit && c.x > -40);
   state.hazards = state.hazards.filter((h) => h.life > 0 && h.x > -160);
   state.particles = state.particles.filter((p) => p.life > 0);
+  if (state.playerShots.length > GAME.maxPlayerShots) state.playerShots.splice(0, state.playerShots.length - GAME.maxPlayerShots);
+  if (state.enemyShots.length > GAME.maxEnemyShots) state.enemyShots.splice(0, state.enemyShots.length - GAME.maxEnemyShots);
+  if (state.particles.length > GAME.maxParticles) state.particles.splice(0, state.particles.length - GAME.maxParticles);
 
   state.enemies = state.enemies.filter((enemy) => {
     if (enemy.hp <= 0) {
@@ -1852,7 +1914,7 @@ function applyPowerUp() {
   const next = POWER_ORDER[player.powerLevel % POWER_ORDER.length];
   player.powerLevel += 1;
   state.score += 100;
-  state.powerUpNoticeText = `POWER UP: ${next}`;
+  state.powerUpNoticeText = `強化: ${POWER_LABELS[next] || next}`;
   state.powerUpNoticeTimer = GAME.powerUpNoticeDuration;
   if (next === "SPEED") player.speed = Math.min(7.2, player.speed + 0.6);
   if (next === "NEEDLE") player.needleLevel = Math.min(2, player.needleLevel + 1);
@@ -2031,14 +2093,14 @@ function drawAreaBackgroundAsset(area) {
   const map = {
     mouth: "bg_mouth",
     throat: "bg_throat",
-    lung: null,
+    lung: "bg_lung",
     esophagus: "bg_esophagus",
     stomach: "bg_stomach",
     intestine: "bg_intestine",
-    heart: null,
-    vessel: null,
-    brain: null,
-    nerve: null,
+    heart: "bg_heart",
+    vessel: "bg_vessel",
+    brain: "bg_brain",
+    nerve: "bg_nerve",
     nest: "bg_nest",
   };
   const key = map[area.id];
@@ -3323,10 +3385,10 @@ function drawUi() {
   }
 
   drawMonitorPanel(12, 10, GAME.width - 24, 42);
-  drawStatPanel(20, 14, 154, 26, "SCORE", String(state.score).padStart(6, "0"));
-  drawStatPanel(184, 14, 82, 26, "LIFE", String(state.player.lives));
-  drawStatPanel(276, 14, 92, 26, "BOMB", String(state.player.bombs));
-  drawAreaHud(382, 14, 240, 26, `BIO AREA : ${String(getCurrentArea().name).toUpperCase()}`);
+  drawStatPanel(20, 14, 154, 26, "スコア", String(state.score).padStart(6, "0"));
+  drawStatPanel(184, 14, 82, 26, "残機", String(state.player.lives));
+  drawStatPanel(276, 14, 92, 26, "ボム", String(state.player.bombs));
+  drawAreaHud(382, 14, 240, 26, `エリア : ${String(getCurrentArea().name).toUpperCase()}`);
   drawEcgLine(634, 15, 126, 24);
   drawConditionWarningHud(766, 15);
   drawRouteMapHud();
@@ -3374,7 +3436,7 @@ function drawPowerUpGauge() {
     }
     ctx.fillStyle = isActive ? "#11131a" : "#7d8a9c";
     ctx.font = "12px monospace";
-    ctx.fillText(name, x + 14, y + 5);
+    ctx.fillText(POWER_LABELS[name] || name, x + 14, y + 5);
   });
 }
 
@@ -3392,8 +3454,8 @@ function drawTouchUi() {
   ctx.arc(touch.stick.x, touch.stick.y, 24, 0, Math.PI * 2);
   ctx.fill();
 
-  drawTouchButton(820, 420, 34, "SHOT", touch.shotPressed, "#69dbff");
-  drawTouchButton(890, 370, 28, "BOMB", touch.bombPressed, "#ffaf6e");
+  drawTouchButton(820, 420, 34, "攻撃", touch.shotPressed, "#69dbff");
+  drawTouchButton(890, 370, 28, "ボム", touch.bombPressed, "#ffaf6e");
   ctx.globalAlpha = 1;
 }
 
@@ -3403,7 +3465,7 @@ function drawTouchButton(x, y, r, label, active, color) {
   ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = active ? "#101320" : "#ffffff";
-  ctx.font = label === "SHOT" ? "14px sans-serif" : "12px sans-serif";
+  ctx.font = label === "攻撃" ? "14px sans-serif" : "12px sans-serif";
   ctx.fillText(label, x - 18, y + 5);
 }
 
@@ -3455,16 +3517,16 @@ function drawRouteMapHud() {
   drawMonitorPanel(18, mapY, 168, h);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "10px monospace";
-  ctx.fillText("ROUTE MAP", 30, mapY + 16);
+  ctx.fillText("ルート", 30, mapY + 16);
   route.forEach((id, index) => {
     const isNow = index === state.areaIndex;
     const label = ROUTE_LABELS[id] || String(id).toUpperCase();
     ctx.fillStyle = isNow ? "#fff5bf" : "rgba(223, 252, 255, 0.82)";
     ctx.font = isNow ? "bold 12px monospace" : "12px monospace";
-    ctx.fillText(`${label}${isNow ? " <- NOW" : ""}`, 44, mapY + 36 + index * rowH);
+    ctx.fillText(`${label}${isNow ? " ← 現在地" : ""}`, 44, mapY + 36 + index * rowH);
     if (index < route.length - 1) {
       ctx.fillStyle = "rgba(142, 246, 255, 0.55)";
-      ctx.fillText("v", 31, mapY + 49 + index * rowH);
+      ctx.fillText("↓", 31, mapY + 49 + index * rowH);
     }
   });
 }
@@ -3473,12 +3535,12 @@ function drawConditionWarningHud(x, y) {
   const condition = getConditionModifier();
   const pulse = Math.floor(state.frame / 26) % 2 === 0;
   drawMonitorPanel(x - 6, y - 1, 176, 28);
-  ctx.fillStyle = condition.label === "HEALTHY" ? "#8ef6ff" : pulse ? "#fff5bf" : "#ff8ea6";
+  ctx.fillStyle = condition.label === "健康" ? "#8ef6ff" : pulse ? "#fff5bf" : "#ff8ea6";
   ctx.font = "bold 10px monospace";
-  ctx.fillText(`COND: ${condition.label}`, x, y + 10);
+  ctx.fillText(`状態: ${condition.label}`, x, y + 10);
   ctx.fillStyle = "#dffcff";
   ctx.font = "10px monospace";
-  ctx.fillText(condition.warning || "STABLE", x, y + 22);
+  ctx.fillText(condition.warning || "安定", x, y + 22);
 }
 
 function drawEcgLine(x, y, w, h) {
@@ -3557,10 +3619,10 @@ function drawOverlays() {
     ctx.strokeRect(0, 198, GAME.width, 78);
     ctx.fillStyle = "#dffcff";
     ctx.font = "bold 18px monospace";
-    ctx.fillText("ENTERING", 404, 226);
+    ctx.fillText("侵入中", 426, 226);
     ctx.fillStyle = area.accent || "#ffffff";
     ctx.font = "bold 36px monospace";
-    ctx.fillText(`${String(area.name).toUpperCase()}...`, 342, 260);
+    ctx.fillText(`${String(area.name).toUpperCase()}...`, 370, 260);
     ctx.restore();
   }
 
@@ -3588,11 +3650,26 @@ function drawOverlays() {
     ctx.restore();
   }
 
+  if (state.bossDefeatTimer > 0) {
+    ctx.save();
+    const alpha = Math.min(1, state.bossDefeatTimer / GAME.bossDefeatDuration);
+    ctx.fillStyle = `rgba(255,255,255,${0.1 + (1 - alpha) * 0.16})`;
+    ctx.fillRect(0, 0, GAME.width, GAME.height);
+    ctx.fillStyle = "rgba(8, 14, 22, 0.72)";
+    ctx.fillRect(280, 210, 400, 64);
+    ctx.strokeStyle = "rgba(255,255,255,0.36)";
+    ctx.strokeRect(280, 210, 400, 64);
+    ctx.fillStyle = "#dffcff";
+    ctx.font = "bold 24px monospace";
+    ctx.fillText("標的を無力化", 394, 249);
+    ctx.restore();
+  }
+
   if (state.noteTimer > 0) {
     ctx.fillStyle = "rgba(10, 14, 20, 0.72)";
     ctx.fillRect(40, 52, GAME.width - 80, 54);
     ctx.fillStyle = "#fff5bf";
-    drawWrappedText(`MEDICAL NOTE: ${getCurrentArea().note}`, 54, 74, GAME.width - 108, 16, 15);
+    drawWrappedText(`医療メモ: ${getCurrentArea().note}`, 54, 74, GAME.width - 108, 16, 15);
   }
 
   if (state.powerUpNoticeTimer > 0) {
@@ -3614,9 +3691,9 @@ function drawOverlays() {
     ctx.strokeRect(0, 214, GAME.width, 64);
     ctx.fillStyle = "#fff2f4";
     ctx.font = "bold 18px monospace";
-    ctx.fillText("ALERT", 398, 236);
+    ctx.fillText("警告", 408, 236);
     ctx.font = "bold 34px monospace";
-    ctx.fillText("WARNING", 372, 262);
+    ctx.fillText("危険反応", 374, 262);
     ctx.strokeStyle = "rgba(255,255,255,0.22)";
     ctx.beginPath();
     ctx.moveTo(20, 246);
@@ -3633,16 +3710,8 @@ function drawOverlays() {
     ctx.fillRect(0, 220, GAME.width, 44);
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 20px monospace";
-    ctx.fillText("SIGNAL NOISE", 382 + Math.sin(state.frame) * 3, 249);
+    ctx.fillText("信号ノイズ", 394 + Math.sin(state.frame) * 3, 249);
     ctx.restore();
-  }
-
-  if (state.inputInvertTimer > 0) {
-    ctx.fillStyle = "rgba(20, 12, 40, 0.58)";
-    ctx.fillRect(350, 68, 260, 28);
-    ctx.fillStyle = "#e4dcff";
-    ctx.font = "bold 14px monospace";
-    ctx.fillText("NEURAL MISFIRE", 410, 87);
   }
 
   if (state.damageFlashTimer > 0) {
@@ -3676,7 +3745,7 @@ function drawOverlays() {
   }
 
   if (state.scene === "gameover") {
-    drawResultOverlay("GAME OVER", "Patient treatment was interrupted.", "SPACE / ENTER / TAP TO RESTART");
+    drawResultOverlay("作戦失敗", "治療ミッションは中断されました。", "スペース / Enter / タップで再開");
   }
   if (state.scene === "clear") {
     drawClearOverlay();
@@ -3726,7 +3795,7 @@ function drawTitleEffects() {
   if (Math.floor(state.frame / 20) % 2 === 0) {
     ctx.fillStyle = "rgba(255, 242, 165, 0.9)";
     ctx.font = "bold 28px monospace";
-    ctx.fillText("PRESS SPACE / ENTER / TAP TO START", 186, 452);
+    ctx.fillText("スペース / Enter / タップで開始", 246, 452);
   }
 }
 
@@ -3734,17 +3803,17 @@ function drawTitleScreen() {
   drawMonitorPanel(168, 132, 624, 176);
   ctx.fillStyle = "#dffcff";
   ctx.font = "bold 16px monospace";
-  ctx.fillText("BIO-MEDICAL MICRO DEPLOYMENT SYSTEM", 196, 166);
+  ctx.fillText("人体内マイクロ治療システム", 242, 166);
   ctx.font = "bold 52px sans-serif";
-  ctx.fillText("MICRO NURSE", 194, 226);
-  ctx.fillText("RESCUE", 194, 280);
+  ctx.fillText("マイクロナース", 194, 226);
+  ctx.fillText("救出作戦", 194, 280);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "13px monospace";
-  ctx.fillText("FUTURE INTERNAL TREATMENT SHOOTER", 198, 304);
+  ctx.fillText("人体内探索シューティング", 258, 304);
   drawMonitorPanel(266, 366, 430, 44);
   ctx.fillStyle = "#dffcff";
   ctx.font = "bold 14px monospace";
-  ctx.fillText("PRESS START", 432, 394);
+  ctx.fillText("開始", 454, 394);
 }
 
 function drawPatientSelectScreen() {
@@ -3760,8 +3829,8 @@ function drawPatientSelectScreen() {
   drawMonitorPanel(88, 68, 784, 42);
   ctx.fillStyle = "#dffcff";
   ctx.font = "bold 26px monospace";
-  ctx.fillText("CASE SELECT", 110, 98);
-  drawHudDigits(700, 95, "CASE FILE");
+  ctx.fillText("症例選択", 110, 98);
+  drawHudDigits(700, 95, "症例ファイル");
 
   PATIENTS.forEach((entry, index) => {
     const isSelected = index === state.currentPatientIndex;
@@ -3786,7 +3855,7 @@ function drawPatientSelectScreen() {
 
     ctx.fillStyle = isSelected ? "#ffffff" : "#b2bfcc";
     ctx.font = "bold 18px monospace";
-    ctx.fillText(`CASE ${String(index + 1).padStart(2, "0")}`, cardX + 18, cardY + 34);
+    ctx.fillText(`症例 ${String(index + 1).padStart(2, "0")}`, cardX + 18, cardY + 34);
     ctx.font = "bold 20px sans-serif";
     ctx.fillText(entry.name, cardX + 18, cardY + 72);
     ctx.fillStyle = isSelected ? entryTheme.accent : "#93a8bb";
@@ -3797,16 +3866,16 @@ function drawPatientSelectScreen() {
     drawWrappedText(entry.shortDescription, cardX + 18, cardY + 136, cardW - 36, 18, 14);
     ctx.fillStyle = entryTheme.secondary;
     ctx.font = "12px monospace";
-    ctx.fillText(`ROUTE: ${getRouteType(entry)}`, cardX + 18, cardY + 178);
+    ctx.fillText(`経路: ${getRouteType(entry)}`, cardX + 18, cardY + 178);
     drawRouteIconStrip(entry, cardX + 142, cardY + 166, entryTheme);
-    ctx.fillText(`CONDITION: ${getConditionLabel(entry)}`, cardX + 18, cardY + 200);
-    ctx.fillText(`DIFFICULTY: ${entry.difficulty}`, cardX + 18, cardY + 222);
+    ctx.fillText(`状態: ${getConditionLabel(entry)}`, cardX + 18, cardY + 200);
+    ctx.fillText(`難度: ${entry.difficulty}`, cardX + 18, cardY + 222);
     if (!entry.unlocked) {
       ctx.fillStyle = "rgba(0,0,0,0.58)";
       ctx.fillRect(cardX, cardY, cardW, cardH);
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 28px monospace";
-      ctx.fillText("LOCKED", cardX + 72, cardY + 134);
+      ctx.fillText("未解放", cardX + 72, cardY + 134);
     } else if (isSelected && Math.floor(state.frame / 18) % 2 === 0) {
       ctx.fillStyle = entryTheme.accent;
       ctx.fillRect(cardX - 12, cardY + 16, 8, 36);
@@ -3816,16 +3885,16 @@ function drawPatientSelectScreen() {
   drawMonitorPanel(96, 394, 712, 74);
   ctx.fillStyle = theme.accent;
   ctx.font = "bold 14px monospace";
-  ctx.fillText(`NAME: ${patient.name.toUpperCase()}    AGE: ${patient.age}`, 118, 420);
-  ctx.fillText(`ROUTE: ${getRouteType(patient)}    CONDITION: ${getConditionLabel(patient)}    UNLOCKED: ${patient.unlocked ? "YES" : "NO"}`, 118, 446);
+  ctx.fillText(`氏名: ${patient.name.toUpperCase()}    年齢: ${patient.age}`, 118, 420);
+  ctx.fillText(`経路: ${getRouteType(patient)}    状態: ${getConditionLabel(patient)}    選択可: ${patient.unlocked ? "可" : "不可"}`, 118, 446);
   ctx.fillStyle = "#fff5bf";
   ctx.font = "bold 18px monospace";
-  ctx.fillText("LEFT / RIGHT TO CHANGE", 150, 486);
-  ctx.fillText("ENTER / TAP TO BRIEFING", 566, 486);
+  ctx.fillText("← / → で変更", 170, 486);
+  ctx.fillText("Enter / タップでブリーフィング", 520, 486);
 
   drawSelectArrowButton(26, 420, "<", theme, false);
   drawSelectArrowButton(894, 420, ">", theme, false);
-  drawSelectArrowButton(454, 500, "OK", theme, true);
+  drawSelectArrowButton(454, 500, "決定", theme, true);
 }
 
 function getPatientSelectOffset(index) {
@@ -4006,25 +4075,25 @@ function drawBriefingScreen() {
   drawMonitorPanel(102, 72, 756, 42);
   ctx.fillStyle = "#dffcff";
   ctx.font = "bold 24px monospace";
-  ctx.fillText("PATIENT DATA", 122, 100);
-  drawHudDigits(680, 97, patient.id.toUpperCase());
+  ctx.fillText("患者データ", 122, 100);
+  drawHudDigits(680, 97, getPatientDisplayId(patient));
 
   drawMonitorPanel(104, 132, 306, 254);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "12px monospace";
-  ctx.fillText("NAME", 126, 160);
+  ctx.fillText("氏名", 126, 160);
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 22px sans-serif";
   ctx.fillText(patient.name, 126, 188);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "12px monospace";
-  ctx.fillText("AGE", 126, 222);
+  ctx.fillText("年齢", 126, 222);
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 20px monospace";
   ctx.fillText(patient.age, 126, 248);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "12px monospace";
-  ctx.fillText("SYMPTOMS", 126, 286);
+  ctx.fillText("症状", 126, 286);
   ctx.fillStyle = "#ffffff";
   ctx.font = "18px sans-serif";
   patient.symptoms.forEach((line, index) => {
@@ -4034,13 +4103,13 @@ function drawBriefingScreen() {
   drawMonitorPanel(430, 132, 428, 160);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "12px monospace";
-  ctx.fillText("DIAGNOSIS", 452, 162);
+  ctx.fillText("診断", 452, 162);
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 28px sans-serif";
   ctx.fillText(patient.diagnosis, 452, 204);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "12px monospace";
-  ctx.fillText("MISSION", 452, 244);
+  ctx.fillText("任務", 452, 244);
   ctx.fillStyle = "#fff4bf";
   ctx.font = "bold 24px sans-serif";
   ctx.fillText(patient.mission, 452, 278);
@@ -4049,20 +4118,20 @@ function drawBriefingScreen() {
   drawEcgLine(444, 324, 192, 24);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "12px monospace";
-  ctx.fillText("ENTRY ROUTE", 448, 354);
+  ctx.fillText("侵入経路", 448, 354);
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 15px monospace";
   ctx.fillText(formatEntryRoute(patient), 448, 376);
   ctx.fillStyle = "#dffcff";
   ctx.font = "13px monospace";
-  ctx.fillText(`BIO STATUS : ${getRouteType(patient)} / ${getConditionLabel(patient)}`, 448, 400);
+  ctx.fillText(`体内状態 : ${getRouteType(patient)} / ${getConditionLabel(patient)}`, 448, 400);
   ctx.fillStyle = "#fff5bf";
   drawWrappedText(getRouteConfig(getAreaById(getCurrentRoute(patient)[getCurrentRoute(patient).length - 1])).briefingText, 448, 420, 370, 16, 13);
 
   if (Math.floor(state.frame / 24) % 2 === 0) {
     ctx.fillStyle = "#fff5bf";
     ctx.font = "bold 22px monospace";
-    ctx.fillText("PRESS SPACE / ENTER / TAP TO DEPLOY", 216, 446);
+    ctx.fillText("スペース / Enter / タップで出動", 292, 446);
   }
 }
 
@@ -4137,21 +4206,21 @@ function drawInjectionScreen() {
 
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "bold 24px monospace";
-  ctx.fillText("MICRO NURSE DEPLOYMENT", 248, 132);
+  ctx.fillText("マイクロナース出動", 318, 132);
   ctx.fillStyle = "#ffffff";
   ctx.font = "15px monospace";
-  ctx.fillText("BIO CAPSULE READY", 120, 194);
-  ctx.fillText("MICRO UNIT ACTIVE", 120, 220);
-  ctx.fillText("SIGNAL STABLE", 120, 246);
-  ctx.fillText(`TARGET ENTRY : ${formatEntryRoute(getCurrentPatient())}`, 120, 272);
+  ctx.fillText("生体カプセル準備完了", 120, 194);
+  ctx.fillText("マイクロユニット起動", 120, 220);
+  ctx.fillText("信号安定", 120, 246);
+  ctx.fillText(`侵入口 : ${formatEntryRoute(getCurrentPatient())}`, 120, 272);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "14px monospace";
-  ctx.fillText(`CASE : ${getCurrentPatient().id.toUpperCase()}`, 610, 194);
-  ctx.fillText(`SUBJECT : ${getCurrentPatient().name.toUpperCase()}`, 610, 220);
-  ctx.fillText(`DIAGNOSIS : ${getCurrentPatient().diagnosis.toUpperCase()}`, 610, 246);
-  ctx.fillText(`CONDITION : ${getConditionLabel(getCurrentPatient())}`, 610, 272);
+  ctx.fillText(`症例 : ${getPatientDisplayId(getCurrentPatient())}`, 610, 194);
+  ctx.fillText(`対象 : ${getCurrentPatient().name.toUpperCase()}`, 610, 220);
+  ctx.fillText(`診断 : ${getCurrentPatient().diagnosis.toUpperCase()}`, 610, 246);
+  ctx.fillText(`状態 : ${getConditionLabel(getCurrentPatient())}`, 610, 272);
   ctx.fillStyle = "#fff5bf";
-  ctx.fillText("TAP / ENTER TO SKIP", 372, 438);
+  ctx.fillText("タップ / Enter でスキップ", 360, 438);
 }
 
 function drawMissionResultScreen() {
@@ -4166,25 +4235,25 @@ function drawMissionResultScreen() {
   drawMonitorPanel(114, 78, 732, 42);
   ctx.fillStyle = "#dffcff";
   ctx.font = "bold 28px monospace";
-  ctx.fillText("RESULT", 136, 108);
-  drawHudDigits(664, 104, "MISSION COMPLETE");
+  ctx.fillText("結果", 136, 108);
+  drawHudDigits(664, 104, "任務完了");
 
   drawMonitorPanel(116, 142, 350, 218);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "12px monospace";
-  ctx.fillText("REMOVAL RATE", 138, 172);
+  ctx.fillText("除去率", 138, 172);
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 44px monospace";
   ctx.fillText(patient.result.removal, 138, 224);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "12px monospace";
-  ctx.fillText("INFLAMMATION CONTROL", 138, 266);
+  ctx.fillText("炎症制御", 138, 266);
   ctx.fillStyle = "#dffcff";
   ctx.font = "bold 26px sans-serif";
   ctx.fillText(patient.result.inflammation, 138, 302);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "12px monospace";
-  ctx.fillText("PATIENT STATUS", 138, 334);
+  ctx.fillText("患者状態", 138, 334);
   ctx.fillStyle = "#fff5bf";
   ctx.font = "bold 28px sans-serif";
   ctx.fillText(patient.result.status, 138, 370);
@@ -4193,15 +4262,15 @@ function drawMissionResultScreen() {
   drawEcgLine(506, 160, 216, 26);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "12px monospace";
-  ctx.fillText("MISSION SUMMARY", 510, 214);
+  ctx.fillText("任務サマリー", 510, 214);
   ctx.fillStyle = "#ffffff";
   ctx.font = "18px sans-serif";
-  ctx.fillText("Source removed and patient stabilized.", 510, 244);
-  ctx.fillText(`Condition monitored: ${getConditionLabel(patient)}`, 510, 268);
-  drawWrappedText(`Route cleared: ${formatEntryRoute(patient)}`, 510, 292, 306, 18, 16);
+  ctx.fillText("感染源を除去し、患者状態は安定。", 510, 244);
+  ctx.fillText(`観察状態: ${getConditionLabel(patient)}`, 510, 268);
+  drawWrappedText(`攻略経路: ${formatEntryRoute(patient)}`, 510, 292, 306, 18, 16);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "12px monospace";
-  ctx.fillText("LEARNING SUMMARY", 510, 326);
+  ctx.fillText("学習メモ", 510, 326);
   ctx.fillStyle = "#ffffff";
   drawWrappedText(getRouteLearningLine(patient), 510, 346, 306, 16, 14);
   drawWrappedText(state.learningSummary[1] || patient.learningSummary[1], 510, 378, 306, 16, 14);
@@ -4209,7 +4278,7 @@ function drawMissionResultScreen() {
   if (Math.floor(state.frame / 24) % 2 === 0) {
     ctx.fillStyle = "#fff5bf";
     ctx.font = "bold 22px monospace";
-    ctx.fillText("PRESS SPACE / ENTER / TAP TO RETURN", 198, 438);
+    ctx.fillText("スペース / Enter / タップで戻る", 292, 438);
   }
 }
 
@@ -4319,17 +4388,17 @@ function drawClearOverlay() {
   ctx.strokeRect(120, 68, 720, 404);
   ctx.fillStyle = "#493a31";
   ctx.font = "bold 40px sans-serif";
-  ctx.fillText("TREATMENT COMPLETE", 248, 126);
+  ctx.fillText("治療完了", 352, 126);
   ctx.font = "22px sans-serif";
-  ctx.fillText("Cause: Common cold virus overgrowth", 248, 176);
-  ctx.fillText("Prognosis: Good", 352, 212);
-  ctx.fillText("Learning Summary", 356, 256);
+  ctx.fillText("原因: 風邪ウイルスの増殖", 300, 176);
+  ctx.fillText("予後: 良好", 392, 212);
+  ctx.fillText("学習まとめ", 382, 256);
   ctx.font = "18px sans-serif";
   state.learningSummary.forEach((line, index) => {
     ctx.fillText(`- ${line}`, 234, 300 + index * 34);
   });
   ctx.fillStyle = "#b0495d";
-  ctx.fillText("SPACE / ENTER / TAP TO RESTART", 292, 436);
+  ctx.fillText("スペース / Enter / タップで再開", 312, 436);
 }
 
 function drawWrappedText(text, x, y, maxWidth, lineHeight, fontSize) {
