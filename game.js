@@ -247,6 +247,11 @@ const ASSET_PATHS = {
   player: "assets/player_nurse.png",
   helper: "assets/helper_white_blood_cell.png",
   boss: "assets/boss_cold_virus.png",
+  boss_cold_virus: "assets/boss_cold_virus.png",
+  boss_blood_clot: "assets/boss_blood_clot.png",
+  boss_vessel_core: "assets/boss_vessel_core.png",
+  boss_brain_tumor: "assets/boss_brain_tumor.png",
+  boss_electric_parasite: "assets/boss_electric_parasite.png",
   patient_cold: "assets/patient_cold.png",
   patient_food_poisoning: "assets/patient_food_poisoning.png",
   bg_mouth: "assets/bg_mouth.png",
@@ -565,6 +570,63 @@ const ROUTE_EVENTS = {
     screenGlow: "rgba(215, 251, 255, 0.1)",
     particleRate: 18,
     particleColor: "#ffffff",
+  },
+};
+
+const BOSS_TYPES = {
+  viralCore: {
+    asset: "boss_cold_virus",
+    notice: "ウイルス中枢を検出",
+    aura: "rgba(255, 88, 124, 0.22)",
+    particle: "#ff9db1",
+    shotFill: "#ffd256",
+    shotStroke: "#ff5d39",
+    shotShadow: "rgba(255, 182, 74, 0.85)",
+  },
+  toxinMass: {
+    asset: "boss_cold_virus",
+    notice: "毒素コアを検出",
+    aura: "rgba(255, 196, 70, 0.2)",
+    particle: "#ffe07a",
+    shotFill: "#ffd256",
+    shotStroke: "#ff8a39",
+    shotShadow: "rgba(255, 196, 74, 0.85)",
+  },
+  giantClot: {
+    asset: "boss_blood_clot",
+    notice: "巨大血栓を検出",
+    aura: "rgba(92, 0, 16, 0.32)",
+    particle: "#7d1020",
+    shotFill: "#7d1020",
+    shotStroke: "#ff9aa8",
+    shotShadow: "rgba(120, 0, 20, 0.86)",
+  },
+  vesselBlockage: {
+    asset: "boss_vessel_core",
+    notice: "心血管コア起動",
+    aura: "rgba(255, 88, 48, 0.24)",
+    particle: "#ff9b55",
+    shotFill: "#ff7a3c",
+    shotStroke: "#ffd0a0",
+    shotShadow: "rgba(255, 98, 54, 0.86)",
+  },
+  brainTumor: {
+    asset: "boss_brain_tumor",
+    notice: "神経異常体を検出",
+    aura: "rgba(148, 92, 255, 0.24)",
+    particle: "#c9b8ff",
+    shotFill: "#9a63ff",
+    shotStroke: "#dffcff",
+    shotShadow: "rgba(160, 112, 255, 0.86)",
+  },
+  electricParasite: {
+    asset: "boss_electric_parasite",
+    notice: "電気寄生体を検出",
+    aura: "rgba(116, 239, 255, 0.26)",
+    particle: "#cafbff",
+    shotFill: "#9ff7ff",
+    shotStroke: "#ffffff",
+    shotShadow: "rgba(100, 240, 255, 0.9)",
   },
 };
 
@@ -910,6 +972,10 @@ function getRouteConfig(area = getCurrentArea()) {
     bossHp: 1,
     briefingText: area.note || "",
   };
+}
+
+function getBossConfig(boss = state.boss) {
+  return BOSS_TYPES[boss?.type] || BOSS_TYPES.viralCore;
 }
 
 function getCurrentPatientAssetKey(patient = getCurrentPatient()) {
@@ -1379,6 +1445,8 @@ function spawnBoss() {
     entered: false,
     type: routeConfig.bossType || "viralCore",
   };
+  // TODO: branch boss battle music here with state.boss.type, e.g. boss_heart / boss_brain.
+  state.currentBgm = `${state.currentBgm}:${state.boss.type}`;
   state.bossHpLag = state.boss.maxHp;
   state.bossDamageFlashTimer = 18;
   state.screenFlashTimer = 8;
@@ -1704,6 +1772,7 @@ function updateBoss() {
         vy: i * 0.75,
         r: 7,
         type: "boss",
+        bossType: boss.type,
       });
     }
   }
@@ -3181,6 +3250,7 @@ function drawMidVirusEnemy(enemy) {
 }
 
 function drawBoss(boss) {
+  drawBossAura(boss);
   if (drawBossAsset(boss)) {
     return;
   }
@@ -3223,6 +3293,50 @@ function drawBoss(boss) {
   ctx.restore();
 }
 
+function drawBossAura(boss) {
+  const config = getBossConfig(boss);
+  const pulse = 1 + Math.sin(state.frame * 0.08) * 0.08;
+  ctx.save();
+  ctx.translate(boss.x, boss.y);
+  ctx.globalAlpha = 0.75;
+  ctx.fillStyle = config.aura;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 92 * pulse, 78 * pulse, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (state.frame % 3 === 0) {
+    ctx.fillStyle = config.particle;
+    for (let i = 0; i < 3; i += 1) {
+      const a = state.frame * 0.03 + i * 2.1;
+      const r = 70 + Math.sin(state.frame * 0.05 + i) * 10;
+      ctx.fillRect(Math.cos(a) * r, Math.sin(a) * r, 3, 3);
+    }
+  }
+  if (boss.type === "vesselBlockage" && state.routePulseTimer > 0) {
+    ctx.strokeStyle = "rgba(255, 220, 160, 0.72)";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 82 + state.routePulseTimer * 0.5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  if (boss.type === "brainTumor" && Math.floor(state.frame / 6) % 2 === 0) {
+    ctx.strokeStyle = "rgba(220, 210, 255, 0.45)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-82 + Math.sin(state.frame) * 4, -70, 164, 140);
+  }
+  if (boss.type === "electricParasite") {
+    ctx.strokeStyle = "rgba(220, 255, 255, 0.68)";
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i += 1) {
+      ctx.beginPath();
+      ctx.moveTo(-72 + i * 46, -84);
+      ctx.lineTo(-54 + i * 42 + Math.sin(state.frame + i) * 10, -44);
+      ctx.lineTo(-70 + i * 48, -8);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
 function drawBossAsset(boss) {
   ctx.save();
   ctx.translate(boss.x, boss.y);
@@ -3234,7 +3348,7 @@ function drawBossAsset(boss) {
   let drawn = false;
   ctx.save();
   ctx.scale(-1, 1);
-  drawn = drawAsset("boss", -82, -82, 164, 164);
+  drawn = drawAsset(getBossConfig(boss).asset, -88, -88, 176, 176);
   ctx.restore();
   if (!drawn) {
     ctx.restore();
@@ -3308,9 +3422,14 @@ function drawEnemyShot(shot) {
     ctx.shadowColor = "rgba(185, 117, 255, 0.85)";
     ctx.fillStyle = "#9a63ff";
     ctx.strokeStyle = "#efe2ff";
+  } else if (shot.type === "boss") {
+    const config = getBossConfig({ type: shot.bossType || "viralCore" });
+    ctx.shadowColor = config.shotShadow;
+    ctx.fillStyle = config.shotFill;
+    ctx.strokeStyle = config.shotStroke;
   } else {
     ctx.shadowColor = "rgba(255, 182, 74, 0.85)";
-    ctx.fillStyle = shot.type === "boss" ? "#ffd256" : "#ffbf47";
+    ctx.fillStyle = "#ffbf47";
     ctx.strokeStyle = "#ff5d39";
   }
   ctx.beginPath();
@@ -3682,6 +3801,8 @@ function drawOverlays() {
 
   if (state.bossWarningTimer > 0) {
     const pulse = Math.floor(state.frame / 6) % 2 === 0;
+    const bossType = getRouteConfig().bossType || "viralCore";
+    const bossConfig = getBossConfig({ type: bossType });
     ctx.fillStyle = pulse ? "rgba(20, 0, 0, 0.38)" : "rgba(0, 0, 0, 0.22)";
     ctx.fillRect(0, 0, GAME.width, GAME.height);
     ctx.fillStyle = pulse ? "rgba(150, 0, 22, 0.78)" : "rgba(96, 0, 18, 0.72)";
@@ -3694,6 +3815,11 @@ function drawOverlays() {
     ctx.fillText("警告", 408, 236);
     ctx.font = "bold 34px monospace";
     ctx.fillText("危険反応", 374, 262);
+    if (state.bossWarningTimer < 60) {
+      ctx.fillStyle = bossConfig.shotStroke;
+      ctx.font = "bold 18px monospace";
+      ctx.fillText(bossConfig.notice, 356, 300);
+    }
     ctx.strokeStyle = "rgba(255,255,255,0.22)";
     ctx.beginPath();
     ctx.moveTo(20, 246);
