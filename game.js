@@ -13,6 +13,7 @@
   maxEnemyShots: 90,
   maxParticles: 180,
   bossDefeatDuration: 120,
+  extractionDuration: 270,
   maxBombs: 3,
   maxLives: 3,
   capsuleChance: 0.35,
@@ -729,6 +730,9 @@ const state = {
   bossDefeatTimer: 0,
   defeatedBossX: 0,
   defeatedBossY: 0,
+  extractionTimer: 0,
+  extractionPhase: 0,
+  extractionAreaId: null,
   activeRouteEvent: null,
   routeEventCooldown: 0,
   routeEventsTriggered: [],
@@ -851,6 +855,9 @@ function resetGame(startScene = "playing") {
   state.bossDefeatTimer = 0;
   state.defeatedBossX = 0;
   state.defeatedBossY = 0;
+  state.extractionTimer = 0;
+  state.extractionPhase = 0;
+  state.extractionAreaId = null;
   state.activeRouteEvent = null;
   state.routeEventCooldown = 0;
   state.routeEventsTriggered = [];
@@ -972,6 +979,16 @@ function getRouteConfig(area = getCurrentArea()) {
     bossHp: 1,
     briefingText: area.note || "",
   };
+}
+
+function getBossRouteArea() {
+  const route = getCurrentRoute();
+  const lastRouteId = route[Math.max(0, route.length - 1)];
+  return getAreaById(lastRouteId);
+}
+
+function getBossRouteConfig() {
+  return getRouteConfig(getBossRouteArea());
 }
 
 function getBossConfig(boss = state.boss) {
@@ -1137,6 +1154,10 @@ function update() {
     updateInjectionScene();
     return;
   }
+  if (state.scene === "extraction") {
+    updateExtractionScene();
+    return;
+  }
   if (state.scene === "gameover" || state.scene === "clear" || state.scene === "result") {
     state.gameOverTimer += 1;
     state.uiNoiseTimer = Math.max(0, state.uiNoiseTimer - 1);
@@ -1218,10 +1239,44 @@ function triggerHitStop(frames) {
 function updateCameraDrift() {
   const area = getCurrentArea();
   const scrollStyle = getAreaScrollStyle(area);
-  const targetX = clamp(state.globalScrollBonus * 1.1, -2, 5) + (state.boss && !state.boss.entered ? 1.5 : 0);
-  const targetY = Math.sin(state.frame * 0.03) * (scrollStyle.driftY ?? (area.id === "stomach" ? 0.8 : 0));
+  const space = getRouteSpaceMotion(area);
+  const targetX = clamp(state.globalScrollBonus * 1.1, -2, 5) + (state.boss && !state.boss.entered ? 1.5 : 0) + space.cameraX;
+  const targetY = Math.sin(state.frame * 0.03) * (scrollStyle.driftY ?? (area.id === "stomach" ? 0.8 : 0)) + space.cameraY;
   state.cameraDriftX += (targetX - state.cameraDriftX) * 0.08;
   state.cameraDriftY += (targetY - state.cameraDriftY) * 0.08;
+}
+
+function getRouteSpaceMotion(area = getCurrentArea()) {
+  const f = state.frame;
+  const id = area.id;
+  if (id === "throat" || id === "esophagus") {
+    const squeeze = (Math.sin(f * 0.045) + 1) * 0.5;
+    return { cameraX: 0, cameraY: squeeze * 0.45, pushX: 0, pushY: 0.18 + squeeze * 0.16, squeeze };
+  }
+  if (id === "stomach") {
+    return { cameraX: Math.sin(f * 0.026) * 0.55, cameraY: Math.sin(f * 0.038) * 0.75, pushX: 0, pushY: Math.sin(f * 0.04) * 0.08, squeeze: 0 };
+  }
+  if (id === "vessel") {
+    const pulse = (Math.sin(f * 0.07) + 1) * 0.5;
+    return { cameraX: 1.1 + pulse * 0.65, cameraY: Math.sin(f * 0.05) * 0.35, pushX: -0.16 - pulse * 0.1, pushY: 0, squeeze: pulse };
+  }
+  if (id === "heart") {
+    const pulse = state.routePulseTimer > 0 ? state.routePulseTimer / 28 : Math.max(0, Math.sin(f * 0.052));
+    return { cameraX: pulse * 0.25, cameraY: pulse * 0.35, pushX: 0, pushY: 0, squeeze: pulse };
+  }
+  if (id === "lung") {
+    const breath = Math.sin(f * 0.035);
+    return { cameraX: breath * 0.25, cameraY: breath * 0.55, pushX: -0.04, pushY: -0.08 + breath * 0.08, squeeze: (breath + 1) * 0.5 };
+  }
+  if (id === "brain") {
+    const glitch = state.fakeWarningTimer > 0 || state.frame % 180 < 8 ? 1 : 0;
+    return { cameraX: glitch ? Math.sin(f * 2.1) * 1.1 : 0, cameraY: glitch ? Math.cos(f * 1.7) * 0.8 : 0, pushX: 0, pushY: 0, squeeze: glitch };
+  }
+  if (id === "nerve") {
+    const pulse = state.frame % 90 < 10 ? 1 : 0;
+    return { cameraX: pulse * 0.4, cameraY: Math.sin(f * 0.08) * 0.35, pushX: 0, pushY: 0, squeeze: pulse };
+  }
+  return { cameraX: 0, cameraY: 0, pushX: 0, pushY: 0, squeeze: 0 };
 }
 
 function updateAreaMotion() {
@@ -1231,6 +1286,13 @@ function updateAreaMotion() {
   const routeConfig = getRouteConfig(area);
   if (scrollStyle.cameraPulse) {
     state.cameraShake = Math.max(state.cameraShake, 0.45 + Math.sin(state.frame * 0.08) * scrollStyle.cameraPulse);
+  }
+  const space = getRouteSpaceMotion(area);
+  if (area.id === "heart") {
+    state.routeScalePulse = Math.max(state.routeScalePulse, Math.min(0.004, space.squeeze * 0.004));
+  }
+  if (area.id === "vessel") {
+    state.globalScrollBonus = Math.max(state.globalScrollBonus, space.squeeze * 0.22);
   }
   if (routeConfig.particles && state.frame % routeConfig.particles.rate === 0) {
     spawnAmbientParticle(routeConfig.particles.color, routeConfig.particles.alpha, routeConfig.particles.speed);
@@ -1375,10 +1437,61 @@ function updateBossDefeatSequence() {
   }
 
   if (state.bossDefeatTimer <= 0) {
+    startExtraction();
+  }
+}
+
+function startExtraction() {
+  const route = getCurrentRoute();
+  const lastRouteIndex = Math.max(0, route.length - 1);
+  state.scene = "extraction";
+  state.extractionTimer = 0;
+  state.extractionPhase = 0;
+  state.areaIndex = lastRouteIndex;
+  state.extractionAreaId = route[lastRouteIndex] || getCurrentArea().id;
+  state.gameOverTimer = 0;
+  state.screenFlashTimer = 12;
+  state.cameraShake = 0;
+  state.enemyShots = [];
+  state.enemies = [];
+  state.hazards = [];
+  state.activeRouteEvent = null;
+  state.routeEventNoticeTimer = 0;
+  setPatientBgm("extraction");
+  // TODO: route / bossTypeごとの帰還BGMへ分岐する場合はここで currentBgm を差し替える。
+}
+
+function updateExtractionScene() {
+  state.extractionTimer += 1;
+  state.extractionPhase = state.extractionTimer < 80 ? 1 : state.extractionTimer < 170 ? 2 : state.extractionTimer < 235 ? 3 : 4;
+  state.screenFlashTimer = Math.max(0, state.screenFlashTimer - 1);
+  state.uiNoiseTimer = Math.max(0, state.uiNoiseTimer - 1);
+  state.cameraDriftX *= 0.9;
+  state.cameraDriftY *= 0.9;
+  state.globalScrollBonus *= 0.94;
+  state.routePulseTimer = Math.max(0, state.routePulseTimer - 1);
+  state.fakeWarningTimer = 0;
+  state.routeScalePulse = Math.max(0, state.routeScalePulse - 0.06);
+
+  if (state.extractionTimer % 28 === 0 && state.particles.length < GAME.maxParticles - 8) {
+    spawnAmbientParticle("#dffcff", 0.12, 0.5);
+  }
+
+  if (state.player) {
+    const targetX = state.extractionPhase >= 3 ? 770 : GAME.width * 0.5;
+    const targetY = state.extractionPhase >= 3 ? 104 : GAME.height * 0.42;
+    state.player.x += (targetX - state.player.x) * 0.035;
+    state.player.y += (targetY - state.player.y) * 0.035;
+    state.player.invuln = 0;
+  }
+
+  updateParticles();
+  cleanupEntities();
+
+  if (state.extractionTimer >= GAME.extractionDuration) {
     state.scene = "result";
     state.gameOverTimer = 0;
-    state.screenFlashTimer = 12;
-    state.cameraShake = 0;
+    state.screenFlashTimer = 10;
   }
 }
 
@@ -1422,7 +1535,7 @@ function startBossWarning() {
 }
 
 function spawnBoss() {
-  const routeConfig = getRouteConfig();
+  const routeConfig = getBossRouteConfig();
   const bossMaxHp = Math.round(GAME.bossMaxHp * (getConditionModifier().bossHp ?? 1) * (routeConfig.bossHp ?? 1));
   state.bossSpawnQueued = false;
   state.bossActive = true;
@@ -1466,12 +1579,16 @@ function updatePlayer(player) {
   if (scrollStyle.flowY) {
     player.y += Math.sin(state.frame * 0.035) * scrollStyle.flowY;
   }
+  const spaceMotion = getRouteSpaceMotion(area);
+  player.x += spaceMotion.pushX;
+  player.y += spaceMotion.pushY;
 
   let topLimit = 42;
   let bottomLimit = GAME.height - 48;
 
-  if (area.id === "esophagus" || area.id === "intestine" || scrollStyle.narrow) {
-    const narrowBoost = (scrollStyle.narrow ? 18 : 0) + (getRouteEventModifier().narrowBoost ?? 0);
+  if (area.id === "throat" || area.id === "esophagus" || area.id === "intestine" || scrollStyle.narrow) {
+    const swallowBoost = area.id === "throat" || area.id === "esophagus" ? 8 + spaceMotion.squeeze * 14 : 0;
+    const narrowBoost = (scrollStyle.narrow ? 18 : 0) + swallowBoost + (getRouteEventModifier().narrowBoost ?? 0);
     topLimit = 68 + narrowBoost + Math.sin(state.frame * 0.03) * 10;
     bottomLimit = GAME.height - 72 - narrowBoost + Math.sin(state.frame * 0.03 + 1.5) * 10;
   }
@@ -2052,6 +2169,7 @@ function draw() {
   applyCameraShake();
   drawBackground();
   drawAreaBackground();
+  drawLivingSpaceLayer();
   drawNonDangerEffects();
   drawHazards();
   drawParticles();
@@ -2068,7 +2186,7 @@ function draw() {
 }
 
 function applyCameraShake() {
-  const allowCameraMotion = state.scene === "playing" || state.scene === "injection";
+  const allowCameraMotion = state.scene === "playing" || state.scene === "injection" || state.scene === "extraction";
   if (!allowCameraMotion) return;
   if (state.damageFlashTimer > 0) {
     const zoom = 1 + state.damageFlashTimer * 0.002 + state.routeScalePulse;
@@ -2297,6 +2415,138 @@ function drawAreaParallaxFront(area) {
     }
   }
   ctx.restore();
+}
+
+function drawLivingSpaceLayer() {
+  if (state.scene !== "playing" && state.scene !== "extraction") return;
+  const area = getCurrentArea();
+  const space = getRouteSpaceMotion(area);
+  ctx.save();
+  if (area.id === "throat" || area.id === "esophagus") {
+    drawSwallowingSpace(space);
+  } else if (area.id === "stomach") {
+    drawStomachSpace();
+  } else if (area.id === "vessel") {
+    drawVesselSpace(space);
+  } else if (area.id === "heart") {
+    drawHeartSpace(space);
+  } else if (area.id === "lung") {
+    drawLungSpace(space);
+  } else if (area.id === "brain") {
+    drawBrainSpace(space);
+  } else if (area.id === "nerve") {
+    drawNerveSpace(space);
+  }
+  ctx.restore();
+}
+
+function drawSwallowingSpace(space) {
+  const squeeze = space.squeeze;
+  const top = 34 + squeeze * 22;
+  const bottom = GAME.height - 34 - squeeze * 22;
+  ctx.fillStyle = "rgba(255, 190, 202, 0.1)";
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  for (let x = 0; x <= GAME.width; x += 28) {
+    ctx.lineTo(x, top + Math.sin((x + state.frame * 1.4) * 0.02) * 10);
+  }
+  ctx.lineTo(GAME.width, 0);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(0, GAME.height);
+  for (let x = 0; x <= GAME.width; x += 28) {
+    ctx.lineTo(x, bottom + Math.sin((x + state.frame * 1.4 + 90) * 0.02) * 10);
+  }
+  ctx.lineTo(GAME.width, GAME.height);
+  ctx.fill();
+}
+
+function drawStomachSpace() {
+  const waveY = GAME.height - 92 + Math.sin(state.frame * 0.045) * 10;
+  ctx.fillStyle = "rgba(255, 240, 120, 0.1)";
+  ctx.beginPath();
+  ctx.moveTo(0, GAME.height);
+  for (let x = 0; x <= GAME.width; x += 24) {
+    ctx.lineTo(x, waveY + Math.sin((x + state.frame * 2.4) * 0.035) * 7);
+  }
+  ctx.lineTo(GAME.width, GAME.height);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255, 255, 210, 0.11)";
+  for (let i = 0; i < 7; i += 1) {
+    const x = (i * 137 - state.frame * 0.7) % (GAME.width + 80);
+    const y = 360 - ((state.frame * 0.55 + i * 37) % 260);
+    ctx.beginPath();
+    ctx.arc(x, y, 3 + (i % 3), 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawVesselSpace(space) {
+  ctx.strokeStyle = "rgba(255, 180, 190, 0.18)";
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 7; i += 1) {
+    const y = 70 + i * 60;
+    const offset = (state.frame * (3.8 + space.squeeze) + i * 80) % (GAME.width + 120);
+    ctx.beginPath();
+    ctx.moveTo(GAME.width - offset, y);
+    ctx.lineTo(GAME.width - offset + 180, y + Math.sin(state.frame * 0.04 + i) * 10);
+    ctx.stroke();
+  }
+}
+
+function drawHeartSpace(space) {
+  const pulse = Math.min(1, space.squeeze);
+  if (pulse > 0.15) {
+    ctx.fillStyle = `rgba(255, 225, 230, ${pulse * 0.07})`;
+    ctx.fillRect(0, 0, GAME.width, GAME.height);
+  }
+  ctx.strokeStyle = "rgba(255, 180, 190, 0.16)";
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.ellipse(GAME.width / 2, GAME.height / 2, 260 - pulse * 14, 160 - pulse * 8, 0, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawLungSpace(space) {
+  const breath = 1 + (space.squeeze - 0.5) * 0.08;
+  ctx.save();
+  ctx.translate(GAME.width / 2, GAME.height / 2);
+  ctx.scale(breath, breath);
+  ctx.translate(-GAME.width / 2, -GAME.height / 2);
+  ctx.strokeStyle = "rgba(225, 255, 255, 0.14)";
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 8; i += 1) {
+    const y = 55 + i * 55;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(GAME.width, y + Math.sin(state.frame * 0.025 + i) * 16);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawBrainSpace(space) {
+  if (!space.squeeze) return;
+  ctx.fillStyle = "rgba(204, 188, 255, 0.07)";
+  for (let i = 0; i < 5; i += 1) {
+    const y = 80 + i * 72 + Math.sin(state.frame + i) * 4;
+    ctx.fillRect(0, y, GAME.width, 2);
+  }
+}
+
+function drawNerveSpace(space) {
+  const active = space.squeeze || Math.floor(state.frame / 28) % 2 === 0;
+  ctx.strokeStyle = active ? "rgba(215, 251, 255, 0.22)" : "rgba(120, 230, 255, 0.1)";
+  ctx.lineWidth = active ? 3 : 2;
+  for (let i = 0; i < 5; i += 1) {
+    const x = (state.frame * 5 + i * 190) % (GAME.width + 120) - 80;
+    ctx.beginPath();
+    ctx.moveTo(x, 40);
+    ctx.lineTo(x + 40, 160);
+    ctx.lineTo(x - 10, 300);
+    ctx.lineTo(x + 50, 500);
+    ctx.stroke();
+  }
 }
 
 function drawStomachForegroundVeil() {
@@ -2669,6 +2919,7 @@ function drawNonDangerEffects() {
 }
 
 function drawHazards() {
+  if (state.scene === "extraction") return;
   const area = getCurrentArea();
   if (area.id === "stomach") {
     drawAcidHazardZone();
@@ -3498,6 +3749,10 @@ function drawUi() {
     drawInjectionScreen();
     return;
   }
+  if (state.scene === "extraction") {
+    drawExtractionScreen();
+    return;
+  }
   if (state.scene === "result") {
     drawMissionResultScreen();
     return;
@@ -3705,6 +3960,9 @@ function drawOverlays() {
     drawResultEffects();
     return;
   }
+  if (state.scene === "extraction") {
+    return;
+  }
 
   if (state.areaBannerTimer > 0) {
     const label = getAreaLabel();
@@ -3801,7 +4059,7 @@ function drawOverlays() {
 
   if (state.bossWarningTimer > 0) {
     const pulse = Math.floor(state.frame / 6) % 2 === 0;
-    const bossType = getRouteConfig().bossType || "viralCore";
+    const bossType = getBossRouteConfig().bossType || "viralCore";
     const bossConfig = getBossConfig({ type: bossType });
     ctx.fillStyle = pulse ? "rgba(20, 0, 0, 0.38)" : "rgba(0, 0, 0, 0.22)";
     ctx.fillRect(0, 0, GAME.width, GAME.height);
@@ -4349,6 +4607,66 @@ function drawInjectionScreen() {
   ctx.fillText("タップ / Enter でスキップ", 360, 438);
 }
 
+function drawExtractionScreen() {
+  const t = state.extractionTimer / GAME.extractionDuration;
+  ctx.fillStyle = `rgba(210, 255, 255, ${0.08 + t * 0.12})`;
+  ctx.fillRect(0, 0, GAME.width, GAME.height);
+  drawScanLines(0, 0, GAME.width, GAME.height, 9);
+
+  const beamAlpha = state.extractionPhase >= 3 ? Math.min(0.42, (state.extractionTimer - 170) / 120) : 0.08;
+  ctx.save();
+  ctx.globalAlpha = beamAlpha;
+  ctx.fillStyle = "#dffcff";
+  ctx.beginPath();
+  ctx.moveTo(720, 0);
+  ctx.lineTo(890, 0);
+  ctx.lineTo(780, GAME.height);
+  ctx.lineTo(610, GAME.height);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  drawMonitorPanel(130, 72, 700, 88);
+  ctx.fillStyle = "#dffcff";
+  ctx.font = "bold 28px monospace";
+  if (state.extractionPhase <= 1) {
+    ctx.fillText("BIO SIGNAL STABILIZED", 250, 112);
+    ctx.font = "bold 18px monospace";
+    ctx.fillText("INFECTION SUPPRESSED", 330, 140);
+  } else if (state.extractionPhase === 2) {
+    ctx.fillText("体内環境 正常化中", 318, 112);
+    ctx.font = "bold 18px monospace";
+    ctx.fillText(getExtractionRouteMessage(), 278, 140);
+  } else if (state.extractionPhase === 3) {
+    ctx.fillText("回収ビーコン起動", 330, 112);
+    ctx.font = "bold 18px monospace";
+    ctx.fillText("マイクロナース帰還中", 338, 140);
+  } else {
+    ctx.fillText("MISSION COMPLETE", 316, 112);
+    ctx.font = "bold 18px monospace";
+    ctx.fillText("PATIENT STATUS STABILIZED", 300, 140);
+  }
+
+  drawMonitorPanel(250, 388, 460, 48);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "13px monospace";
+  ctx.fillText(`経路: ${formatEntryRoute(getCurrentPatient())}`, 274, 410);
+  ctx.fillText(`状態: ${getConditionLabel(getCurrentPatient())} → 安定`, 274, 428);
+}
+
+function getExtractionRouteMessage() {
+  const areaId = state.extractionAreaId || getCurrentArea().id;
+  const map = {
+    lung: "空気粒子が静まり、呼吸が安定しています",
+    stomach: "胃酸波が落ち着き、粘膜反応が低下しています",
+    heart: "心拍が安定し、血流が整いつつあります",
+    vessel: "血流速度が正常域へ戻っています",
+    brain: "神経ノイズが消失し、信号が整っています",
+    nerve: "放電が停止し、神経信号が安定しています",
+  };
+  return map[areaId] || "体内環境が正常値へ戻っています";
+}
+
 function drawMissionResultScreen() {
   const patient = getCurrentPatient();
   ctx.fillStyle = "rgba(6, 12, 18, 0.9)";
@@ -4383,6 +4701,18 @@ function drawMissionResultScreen() {
   ctx.fillStyle = "#fff5bf";
   ctx.font = "bold 28px sans-serif";
   ctx.fillText(patient.result.status, 138, 370);
+
+  drawMonitorPanel(116, 382, 350, 48);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "11px monospace";
+  ctx.fillText("BODY STATUS", 138, 400);
+  ctx.fillText("IMMUNE RESPONSE", 260, 400);
+  ctx.fillText("INFLAMMATION", 390, 400);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 12px monospace";
+  ctx.fillText("[ 安定 ]", 138, 420);
+  ctx.fillText("[ 正常 ]", 260, 420);
+  ctx.fillText("[ 低下 ]", 390, 420);
 
   drawMonitorPanel(488, 142, 358, 258);
   drawEcgLine(506, 160, 216, 26);
