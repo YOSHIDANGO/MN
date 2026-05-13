@@ -983,12 +983,16 @@ function getRouteConfig(area = getCurrentArea()) {
 
 function getBossRouteArea() {
   const route = getCurrentRoute();
-  const lastRouteId = route[Math.max(0, route.length - 1)];
+  const lastRouteId = route[getLastRouteIndex()];
   return getAreaById(lastRouteId);
 }
 
 function getBossRouteConfig() {
   return getRouteConfig(getBossRouteArea());
+}
+
+function getLastRouteIndex() {
+  return Math.max(0, getCurrentRoute().length - 1);
 }
 
 function getBossConfig(boss = state.boss) {
@@ -1526,7 +1530,7 @@ function startBossWarning() {
   state.bossSpawnQueued = true;
   state.bossWarningTimer = 96;
   setPatientBgm("warning");
-  state.areaIndex = getCurrentRoute().length;
+  state.areaIndex = getLastRouteIndex();
   state.areaBannerTimer = 0;
   state.noteTimer = 0;
   state.activeRouteEvent = null;
@@ -1540,7 +1544,7 @@ function spawnBoss() {
   state.bossSpawnQueued = false;
   state.bossActive = true;
   setPatientBgm("boss");
-  state.areaIndex = getCurrentRoute().length;
+  state.areaIndex = getLastRouteIndex();
   state.areaBannerTimer = 240;
   state.noteTimer = 200;
   state.cameraShake = 10;
@@ -3507,11 +3511,7 @@ function drawBoss(boss) {
   }
   ctx.save();
   ctx.translate(boss.x, boss.y);
-  if (boss.dashTimer > 36 && Math.floor(boss.dashTimer / 6) % 2 === 0) {
-    ctx.strokeStyle = "rgba(255, 250, 150, 0.85)";
-    ctx.lineWidth = 5;
-    ctx.strokeRect(-96, -88, 70, 176);
-  }
+  drawBossDashWarning(boss);
   ctx.fillStyle = boss.dashTimer > 0 ? "#ff4f75" : "#cf244f";
   ctx.beginPath();
   ctx.arc(0, 0, boss.w / 2, 0, Math.PI * 2);
@@ -3572,7 +3572,15 @@ function drawBossAura(boss) {
   if (boss.type === "brainTumor" && Math.floor(state.frame / 6) % 2 === 0) {
     ctx.strokeStyle = "rgba(220, 210, 255, 0.45)";
     ctx.lineWidth = 2;
-    ctx.strokeRect(-82 + Math.sin(state.frame) * 4, -70, 164, 140);
+    for (let i = 0; i < 3; i += 1) {
+      const y = -48 + i * 42 + Math.sin(state.frame * 0.18 + i) * 4;
+      ctx.beginPath();
+      ctx.moveTo(-78, y);
+      ctx.lineTo(-34 + Math.sin(state.frame + i) * 8, y + 5);
+      ctx.lineTo(18 + Math.cos(state.frame * 0.6 + i) * 7, y - 3);
+      ctx.lineTo(76, y + 4);
+      ctx.stroke();
+    }
   }
   if (boss.type === "electricParasite") {
     ctx.strokeStyle = "rgba(220, 255, 255, 0.68)";
@@ -3588,16 +3596,27 @@ function drawBossAura(boss) {
   ctx.restore();
 }
 
+function drawBossDashWarning(boss) {
+  if (boss.dashTimer <= 36 || Math.floor(boss.dashTimer / 6) % 2 !== 0) return;
+  ctx.strokeStyle = "rgba(255, 250, 150, 0.85)";
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.arc(0, 0, 94, -0.65, 0.72);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, 0, 94, Math.PI - 0.72, Math.PI + 0.65);
+  ctx.stroke();
+}
+
 function drawBossAsset(boss) {
   ctx.save();
   ctx.translate(boss.x, boss.y);
-  if (boss.dashTimer > 36 && Math.floor(boss.dashTimer / 6) % 2 === 0) {
-    ctx.strokeStyle = "rgba(255, 250, 150, 0.85)";
-    ctx.lineWidth = 5;
-    ctx.strokeRect(-96, -88, 70, 176);
-  }
+  drawBossDashWarning(boss);
   let drawn = false;
   ctx.save();
+  ctx.beginPath();
+  ctx.arc(0, 0, 84, 0, Math.PI * 2);
+  ctx.clip();
   ctx.scale(-1, 1);
   drawn = drawAsset(getBossConfig(boss).asset, -88, -88, 176, 176);
   ctx.restore();
@@ -3605,9 +3624,17 @@ function drawBossAsset(boss) {
     ctx.restore();
     return false;
   }
+  ctx.shadowBlur = 14;
+  ctx.shadowColor = getBossConfig(boss).particle;
   ctx.beginPath();
-  ctx.arc(0, 0, boss.w / 2, 0, Math.PI * 2);
+  ctx.arc(0, 0, 84, 0, Math.PI * 2);
   outlineCurrentShape("#fff1f5", 5);
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = getBossConfig(boss).particle;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, 91 + Math.sin(state.frame * 0.08) * 3, 0, Math.PI * 2);
+  ctx.stroke();
   ctx.restore();
   return true;
 }
