@@ -58,6 +58,53 @@ body {
   touch-action: none;
 }
 
+.game-frame:fullscreen {
+  width: 100vw;
+  height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: #05070d;
+  box-shadow: none;
+}
+
+.game-frame:fullscreen #gameCanvas {
+  width: min(100vw, calc(100dvh * 16 / 9));
+  height: min(100dvh, calc(100vw * 9 / 16));
+  border-radius: 0;
+}
+
+body.is-game-fullscreen {
+  padding: 0;
+  overflow: hidden;
+  background: #05070d;
+}
+
+body.is-game-fullscreen .app-shell {
+  width: 100vw;
+  height: 100dvh;
+  display: grid;
+  place-items: center;
+}
+
+body.is-game-fullscreen .game-frame {
+  width: min(100vw, calc(100dvh * 16 / 9));
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body.is-game-fullscreen #gameCanvas {
+  width: 100%;
+  height: auto;
+  max-height: 100dvh;
+  border-radius: 0;
+}
+
 @media (max-width: 720px) {
   body {
     padding: 8px;

@@ -693,6 +693,7 @@ const CONDITION_MODIFIERS = {
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
+const gameFrame = document.querySelector(".game-frame");
 const assets = loadAssets(ASSET_PATHS);
 
 const state = {
@@ -4302,11 +4303,11 @@ function drawPatientSelectScreen() {
   ctx.fillStyle = "#fff5bf";
   ctx.font = "bold 18px monospace";
   ctx.fillText("← / → で変更", 170, 486);
-  ctx.fillText("Enter / タップでブリーフィング", 520, 486);
+  ctx.fillText("Enterでも決定", 552, 486);
 
   drawSelectArrowButton(26, 420, "<", theme, false);
-  drawSelectArrowButton(894, 420, ">", theme, false);
-  drawSelectArrowButton(454, 500, "決定", theme, true);
+  drawSelectArrowButton(900, 420, ">", theme, false);
+  drawSelectArrowButton(814, 420, "決定", theme, true);
 }
 
 function getPatientSelectOffset(index) {
@@ -5036,14 +5037,25 @@ function returnToTitle() {
 }
 
 function enterFullscreen() {
-  if (document.fullscreenElement) return;
-  const target = document.documentElement;
+  const target = gameFrame || canvas || document.documentElement;
+  lockLandscapeOrientation();
+  if (document.fullscreenElement) {
+    document.body.classList.add("is-game-fullscreen");
+    return;
+  }
   if (!target.requestFullscreen) return;
-  target.requestFullscreen().then(() => {
-    if (screen.orientation && screen.orientation.lock) {
-      screen.orientation.lock("landscape").catch(() => {});
-    }
-  }).catch(() => {});
+  target.requestFullscreen({ navigationUI: "hide" }).then(() => {
+    document.body.classList.add("is-game-fullscreen");
+    lockLandscapeOrientation();
+  }).catch(() => {
+    document.body.classList.add("is-game-fullscreen");
+  });
+}
+
+function lockLandscapeOrientation() {
+  if (screen.orientation?.lock) {
+    screen.orientation.lock("landscape").catch(() => {});
+  }
 }
 
 function onKeyChange(code, pressed) {
@@ -5106,8 +5118,8 @@ function touchRegions(point) {
 function patientSelectRegions(point) {
   return {
     left: point.x >= 16 && point.x <= 80 && point.y >= 412 && point.y <= 476,
-    right: point.x >= 888 && point.x <= 952 && point.y >= 412 && point.y <= 476,
-    start: point.x >= 442 && point.x <= 526 && point.y >= 492 && point.y <= 540,
+    right: point.x >= 896 && point.x <= 956 && point.y >= 412 && point.y <= 476,
+    start: point.x >= 806 && point.x <= 894 && point.y >= 412 && point.y <= 476,
     leftPane: point.x < GAME.width * 0.5,
     rightPane: point.x >= GAME.width * 0.5,
   };
@@ -5119,6 +5131,11 @@ window.addEventListener("keydown", (event) => {
 });
 
 window.addEventListener("keyup", (event) => onKeyChange(event.code, false));
+
+document.addEventListener("fullscreenchange", () => {
+  document.body.classList.toggle("is-game-fullscreen", Boolean(document.fullscreenElement));
+  if (document.fullscreenElement) lockLandscapeOrientation();
+});
 
 canvas.addEventListener("pointerdown", (event) => {
   event.preventDefault();
