@@ -4214,13 +4214,14 @@ function drawTitleScreen() {
   drawMonitorPanel(168, 132, 624, 176);
   ctx.fillStyle = "#dffcff";
   ctx.font = "bold 16px monospace";
-  ctx.fillText("人体内マイクロ治療システム", 242, 166);
-  ctx.font = "bold 52px sans-serif";
-  ctx.fillText("マイクロナース", 194, 226);
-  ctx.fillText("救出作戦", 194, 280);
+  ctx.fillText("人体内ミクロ治療システム", 242, 166);
+  ctx.font = "bold 48px sans-serif";
+  ctx.fillText("ミクロ・ナース", 194, 226);
+  ctx.fillText("トリートメント", 194, 278);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "13px monospace";
-  ctx.fillText("人体内探索シューティング", 258, 304);
+  ctx.fillText("MICRO NURSE TREATMENT", 286, 306);
+  ctx.fillText("人体内探索シューティング", 280, 326);
   drawMonitorPanel(266, 366, 430, 44);
   ctx.fillStyle = "#dffcff";
   ctx.font = "bold 14px monospace";
@@ -4617,11 +4618,11 @@ function drawInjectionScreen() {
 
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "bold 24px monospace";
-  ctx.fillText("マイクロナース出動", 318, 132);
+  ctx.fillText("ミクロナース出動", 318, 132);
   ctx.fillStyle = "#ffffff";
   ctx.font = "15px monospace";
   ctx.fillText("生体カプセル準備完了", 120, 194);
-  ctx.fillText("マイクロユニット起動", 120, 220);
+  ctx.fillText("ミクロユニット起動", 120, 220);
   ctx.fillText("信号安定", 120, 246);
   ctx.fillText(`侵入口 : ${formatEntryRoute(getCurrentPatient())}`, 120, 272);
   ctx.fillStyle = "#8ef6ff";
@@ -4667,7 +4668,7 @@ function drawExtractionScreen() {
   } else if (state.extractionPhase === 3) {
     ctx.fillText("回収ビーコン起動", 330, 112);
     ctx.font = "bold 18px monospace";
-    ctx.fillText("マイクロナース帰還中", 338, 140);
+    ctx.fillText("ミクロナース帰還中", 338, 140);
   } else {
     ctx.fillText("MISSION COMPLETE", 316, 112);
     ctx.font = "bold 18px monospace";
