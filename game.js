@@ -43,6 +43,7 @@ const PATIENTS = [
     symptoms: ["高熱", "咳", "喉の痛み"],
     diagnosis: "風邪ウイルス感染",
     mission: "感染源を除去せよ",
+    treatmentGoal: "酸素低下を防ぎ、感染源を除去",
     threat: "咳 / 炎症",
     difficulty: "通常",
     routeType: "呼吸器",
@@ -84,6 +85,7 @@ const PATIENTS = [
     symptoms: ["腹痛", "吐き気", "胃の不快感"],
     diagnosis: "食中毒による胃腸障害",
     mission: "胃腸内の異常を除去せよ",
+    treatmentGoal: "胃腸炎症を抑え、毒素を中和",
     threat: "胃酸 / 毒素",
     difficulty: "難しい",
     routeType: "消化器",
@@ -126,6 +128,7 @@ const PATIENTS = [
     symptoms: ["動悸", "胸部圧迫感", "息切れ"],
     diagnosis: "心拍リズム異常",
     mission: "血流を安定化せよ",
+    treatmentGoal: "血流と心拍を安定化",
     threat: "脈動 / 血栓",
     difficulty: "難しい",
     routeType: "循環器",
@@ -168,6 +171,7 @@ const PATIENTS = [
     symptoms: ["頭痛", "幻覚", "視界のぼやけ"],
     diagnosis: "神経信号異常",
     mission: "神経の誤作動を抑制せよ",
+    treatmentGoal: "神経ノイズを抑制",
     threat: "ノイズ / 幻覚",
     difficulty: "難しい",
     routeType: "神経系",
@@ -210,6 +214,7 @@ const PATIENTS = [
     symptoms: ["しびれ", "痛み", "筋力低下"],
     diagnosis: "末梢神経炎",
     mission: "損傷した神経信号を修復せよ",
+    treatmentGoal: "通電異常を遮断し神経を保護",
     threat: "電流 / ショック",
     difficulty: "通常",
     routeType: "神経",
@@ -691,6 +696,117 @@ const CONDITION_MODIFIERS = {
   },
 };
 
+const VITAL_CONDITION_OFFSETS = {
+  healthy: {},
+  fever: { infection: 16, inflammation: 14, oxygen: -3, stability: -5 },
+  smoker: { infection: 5, inflammation: 6, oxygen: -18, stability: -4 },
+  gastritis: { infection: 8, inflammation: 20, oxygen: -2, stability: -9 },
+  dehydration: { infection: 2, inflammation: 5, oxygen: -6, stability: -15 },
+};
+
+const ROUTE_TREATMENT_PROFILES = {
+  mouth: {
+    type: "biofilmPatch",
+    label: "菌叢",
+    objective: "口内細菌の増殖を抑える",
+    message: "口内細菌の増殖を確認",
+    hp: 5,
+    score: 420,
+    improve: { infection: -4, inflammation: -1 },
+    worsen: { infection: 3 },
+  },
+  throat: {
+    type: "inflamedTissue",
+    label: "炎症部",
+    objective: "喉の炎症反応を抑える",
+    message: "炎症部位を保護して",
+    hp: 6,
+    score: 460,
+    improve: { inflammation: -5, stability: 2 },
+    worsen: { inflammation: 3 },
+  },
+  lung: {
+    type: "infectedAlveoli",
+    label: "肺胞",
+    objective: "肺胞を守り酸素低下を防ぐ",
+    message: "酸素低下、肺胞を守って",
+    hp: 6,
+    score: 520,
+    improve: { infection: -2, oxygen: 6 },
+    worsen: { infection: 2, oxygen: -5 },
+  },
+  esophagus: {
+    type: "mucosaLesion",
+    label: "粘膜",
+    objective: "粘膜を守り安全に通過する",
+    message: "粘膜損傷を確認",
+    hp: 5,
+    score: 440,
+    improve: { inflammation: -2, stability: 4 },
+    worsen: { inflammation: 2, stability: -3 },
+  },
+  stomach: {
+    type: "toxinPatch",
+    label: "毒素",
+    objective: "胃酸と毒素による炎症を抑える",
+    message: "胃酸濃度が上昇",
+    hp: 7,
+    score: 560,
+    improve: { infection: -2, inflammation: -6 },
+    worsen: { infection: 2, inflammation: 4 },
+  },
+  intestine: {
+    type: "toxinPocket",
+    label: "吸収毒",
+    objective: "毒素吸収を防ぐ",
+    message: "毒素吸収を阻止して",
+    hp: 6,
+    score: 500,
+    improve: { infection: -5, inflammation: -2 },
+    worsen: { infection: 4, inflammation: 2 },
+  },
+  vessel: {
+    type: "clotBlock",
+    label: "血栓",
+    objective: "血流の詰まりを防ぐ",
+    message: "血流の乱れを検出",
+    hp: 7,
+    score: 560,
+    improve: { oxygen: 2, stability: 5 },
+    worsen: { oxygen: -2, stability: -4 },
+  },
+  heart: {
+    type: "unstablePulseNode",
+    label: "脈動核",
+    objective: "心拍の安定を維持する",
+    message: "心拍同期を維持して",
+    hp: 7,
+    score: 580,
+    improve: { oxygen: 2, stability: 7 },
+    worsen: { oxygen: -2, stability: -5 },
+  },
+  brain: {
+    type: "noisyNeuron",
+    label: "神経核",
+    objective: "神経ノイズを抑える",
+    message: "神経ノイズを検出",
+    hp: 6,
+    score: 540,
+    improve: { inflammation: -2, stability: 5 },
+    worsen: { inflammation: 2, stability: -4 },
+  },
+  nerve: {
+    type: "shortedSynapse",
+    label: "短絡部",
+    objective: "通電異常を抑える",
+    message: "通電異常を遮断して",
+    hp: 6,
+    score: 540,
+    improve: { oxygen: 1, stability: 6 },
+    worsen: { stability: -4 },
+  },
+};
+
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const gameFrame = document.querySelector(".game-frame");
@@ -744,9 +860,27 @@ const state = {
   ambienceNode: null,
   bossHpLag: 0,
   bossDamageFlashTimer: 0,
+  bossHitStopCooldown: 0,
   injectionTimer: 0,
   stageEntryFlashTimer: 0,
   patientSwapTimer: 0,
+  vitals: null,
+  initialVitals: null,
+  vitalsWarningCooldown: 0,
+  treatmentTargets: [],
+  treatmentTargetSerial: 0,
+  treatmentStats: { completed: 0, missed: 0, enemiesEscaped: 0 },
+  treatmentEffects: [],
+  vitalPopups: [],
+  vitalWarningTimer: 0,
+  vitalWarningType: "",
+  vitalsHudFlashTimer: 0,
+  treatmentGlowTimer: 0,
+  nurseMessage: "",
+  nurseMessageTimer: 0,
+  nurseMessagePriority: 0,
+  nurseMessageCooldowns: {},
+  resultCuePlayed: false,
   learningSummary: [],
   player: null,
   helper: null,
@@ -866,9 +1000,27 @@ function resetGame(startScene = "playing") {
   state.routeEventNoticeText = "";
   state.bossHpLag = GAME.bossMaxHp;
   state.bossDamageFlashTimer = 0;
+  state.bossHitStopCooldown = 0;
   state.injectionTimer = 0;
   state.stageEntryFlashTimer = 0;
   state.patientSwapTimer = 0;
+  state.vitals = initVitals();
+  state.initialVitals = { ...state.vitals };
+  state.vitalsWarningCooldown = 0;
+  state.treatmentTargets = [];
+  state.treatmentTargetSerial = 0;
+  state.treatmentStats = { completed: 0, missed: 0, enemiesEscaped: 0 };
+  state.treatmentEffects = [];
+  state.vitalPopups = [];
+  state.vitalWarningTimer = 0;
+  state.vitalWarningType = "";
+  state.vitalsHudFlashTimer = 0;
+  state.treatmentGlowTimer = 0;
+  state.nurseMessage = "";
+  state.nurseMessageTimer = 0;
+  state.nurseMessagePriority = 0;
+  state.nurseMessageCooldowns = {};
+  state.resultCuePlayed = false;
   state.learningSummary = [...getCurrentPatient().learningSummary];
   state.player = makePlayer();
   state.helper = null;
@@ -955,6 +1107,344 @@ function getConditionModifier(patient = getCurrentPatient()) {
 
 function getConditionLabel(patient = getCurrentPatient()) {
   return getConditionModifier(patient).label;
+}
+
+function initVitals(patient = getCurrentPatient()) {
+  const vitals = { infection: 48, inflammation: 34, oxygen: 94, stability: 88 };
+  const routeOffsets = {
+    "呼吸器": { infection: 4, oxygen: -5 },
+    "消化器": { infection: 3, inflammation: 5, stability: -2 },
+    "循環器": { oxygen: -4, stability: -6 },
+    "神経系": { inflammation: 2, stability: -7 },
+    "神経": { stability: -6 },
+  }[getRouteType(patient)] || {};
+  const conditionOffsets = VITAL_CONDITION_OFFSETS[patient.condition] || {};
+  for (const key of Object.keys(vitals)) {
+    vitals[key] = clamp(vitals[key] + (routeOffsets[key] || 0) + (conditionOffsets[key] || 0), 0, 100);
+  }
+  return vitals;
+}
+
+function applyVitalChanges(changes) {
+  if (!state.vitals || !changes) return {};
+  const applied = {};
+  for (const [key, amount] of Object.entries(changes)) {
+    if (!(key in state.vitals)) continue;
+    const before = state.vitals[key];
+    state.vitals[key] = clamp(before + amount, 0, 100);
+    applied[key] = state.vitals[key] - before;
+  }
+  return applied;
+}
+
+function improveVitals(changes, feedback = null) {
+  const applied = applyVitalChanges(changes);
+  if (feedback) spawnVitalPopups(applied, feedback.x, feedback.y);
+  return applied;
+}
+
+function worsenVitals(changes, feedback = null) {
+  const applied = applyVitalChanges(changes);
+  if (feedback) spawnVitalPopups(applied, feedback.x, feedback.y);
+  maybeWarnVitals();
+  return applied;
+}
+
+function updateVitals() {
+  if (!state.vitals || state.bossDefeatTimer > 0 || state.scene !== "playing") return;
+  state.vitalsWarningCooldown = Math.max(0, state.vitalsWarningCooldown - 1);
+  if (state.frame % 120 !== 0) return;
+  const eventScale = state.activeRouteEvent ? 1.4 : 1;
+  const changesByArea = {
+    mouth: { infection: 0.55 },
+    throat: { inflammation: 0.6 },
+    lung: { oxygen: -0.55 },
+    esophagus: { stability: -0.35 },
+    stomach: { inflammation: 0.65 },
+    intestine: { infection: 0.55 },
+    vessel: { stability: -0.5 },
+    heart: { stability: -0.6 },
+    brain: { stability: -0.45 },
+    nerve: { stability: -0.45 },
+  };
+  const baseChanges = changesByArea[getCurrentArea().id];
+  if (!baseChanges) return;
+  const scaled = {};
+  for (const [key, amount] of Object.entries(baseChanges)) scaled[key] = amount * eventScale;
+  worsenVitals(scaled);
+}
+
+function onEnemyEscaped() {
+  state.treatmentStats.enemiesEscaped += 1;
+  const areaId = getCurrentArea().id;
+  const changes = {
+    lung: { infection: 0.35, oxygen: -0.6 },
+    stomach: { infection: 0.25, inflammation: 0.55 },
+    intestine: { infection: 0.55, inflammation: 0.2 },
+    vessel: { oxygen: -0.2, stability: -0.5 },
+    heart: { stability: -0.55 },
+    brain: { stability: -0.45 },
+    nerve: { stability: -0.45 },
+  }[areaId] || { infection: 0.45, inflammation: 0.2 };
+  worsenVitals(changes);
+}
+
+function maybeWarnVitals() {
+  if (!state.vitals || state.vitalsWarningCooldown > 0) return;
+  let message = "";
+  let type = "";
+  if (state.vitals.oxygen <= 38) {
+    message = "酸素低下、処置を優先して";
+    type = "oxygen";
+  } else if (state.vitals.stability <= 38) {
+    message = "患者状態が不安定";
+    type = "stability";
+  } else if (state.vitals.infection >= 78) {
+    message = "感染反応が上昇";
+    type = "infection";
+  } else if (state.vitals.inflammation >= 78) {
+    message = "炎症反応が上昇";
+    type = "inflammation";
+  }
+  if (!message) return;
+  state.vitalsWarningCooldown = 240;
+  triggerVitalWarning(type);
+  showNurseMessage(message, 105, { priority: 5, key: `danger:${type}`, cooldown: 220, force: true });
+}
+
+function triggerVitalWarning(type) {
+  state.vitalWarningType = type;
+  state.vitalWarningTimer = 72;
+  state.vitalsHudFlashTimer = 60;
+  if (type === "stability") state.uiNoiseTimer = Math.max(state.uiNoiseTimer, 8);
+  playTreatmentCue("danger");
+}
+
+function spawnVitalPopups(changes, x = 790, y = 190) {
+  if (!changes) return;
+  const entries = Object.entries(changes)
+    .filter(([, amount]) => Math.abs(amount) >= 0.75)
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+    .slice(0, 2);
+  entries.forEach(([key, amount], index) => {
+    const badIncrease = (key === "infection" || key === "inflammation") ? amount > 0 : amount < 0;
+    const labels = { infection: "感染", inflammation: "炎症", oxygen: "酸素", stability: "安定" };
+    state.vitalPopups.push({
+      text: `${labels[key]} ${amount > 0 ? "UP" : "DOWN"}`,
+      x,
+      y: y + index * 16,
+      vy: -0.28,
+      life: 64,
+      color: badIncrease ? "#ff8297" : "#8ef6ff",
+    });
+  });
+  if (state.vitalPopups.length > 6) state.vitalPopups.splice(0, state.vitalPopups.length - 6);
+}
+
+function updateVitalPopups() {
+  for (const popup of state.vitalPopups) {
+    popup.life -= 1;
+    popup.y += popup.vy;
+  }
+  state.vitalPopups = state.vitalPopups.filter((popup) => popup.life > 0);
+}
+
+function getTreatmentProfile(area = getCurrentArea()) {
+  return ROUTE_TREATMENT_PROFILES[area.id] || null;
+}
+
+function spawnTreatmentTarget(area = getCurrentArea()) {
+  const profile = getTreatmentProfile(area);
+  if (!profile || state.bossActive || state.bossSpawnQueued) return;
+  const activeCount = state.treatmentTargets.filter((target) => !target.resolved && target.areaId === area.id).length;
+  if (activeCount >= 2) return;
+  state.treatmentTargetSerial += 1;
+  state.treatmentTargets.push({
+    id: state.treatmentTargetSerial,
+    areaId: area.id,
+    type: profile.type,
+    label: profile.label,
+    x: GAME.width - 34,
+    y: 112 + Math.random() * 292,
+    w: 46,
+    h: 46,
+    hp: profile.hp,
+    maxHp: profile.hp,
+    vx: -1.25,
+    pulse: Math.random() * Math.PI * 2,
+    scan: Math.random() * 40,
+    hitFlash: 0,
+    treatmentStarted: false,
+    resolved: false,
+  });
+  showNurseMessage(profile.message, 96, { priority: 2, key: `target:${area.id}`, cooldown: 180 });
+}
+
+function updateTreatmentTargets() {
+  for (const target of state.treatmentTargets) {
+    if (target.resolved) continue;
+    target.pulse += 0.08;
+    target.scan = (target.scan + 0.7) % 42;
+    target.hitFlash = Math.max(0, target.hitFlash - 1);
+    target.x += target.vx - getScrollAdjustment() * 0.24;
+    target.y += Math.sin(target.pulse) * 0.12;
+    if (target.x < -50) missTreatmentTarget(target);
+  }
+  state.treatmentTargets = state.treatmentTargets.filter((target) => !target.resolved);
+}
+
+function hitTreatmentTarget(target, damage, x, y) {
+  if (target.resolved) return;
+  target.hp -= damage;
+  target.hitFlash = 10;
+  if (!target.treatmentStarted) {
+    target.treatmentStarted = true;
+    playTreatmentCue("start");
+    showNurseMessage("処置開始、反応あり", 72, { priority: 2, key: `treat:${target.id}`, cooldown: 9999 });
+  }
+  spawnTreatmentSparks(x, y, 2);
+  if (target.hp <= 0) completeTreatmentTarget(target);
+}
+
+function completeTreatmentTarget(target) {
+  if (target.resolved) return;
+  const profile = ROUTE_TREATMENT_PROFILES[target.areaId];
+  target.resolved = true;
+  state.treatmentStats.completed += 1;
+  state.score += profile?.score || 400;
+  improveVitals(profile?.improve, { x: target.x + 22, y: target.y - 12 });
+  state.treatmentEffects.push({ kind: "complete", x: target.x, y: target.y, life: 78, maxLife: 78, text: "STABILIZED" });
+  spawnTreatmentSparks(target.x, target.y, 8);
+  state.treatmentGlowTimer = Math.max(state.treatmentGlowTimer, 14);
+  playTreatmentCue("complete");
+  showNurseMessage("処置完了、患者反応が改善", 105, { priority: 5, key: "treatmentComplete", cooldown: 45, force: true });
+  if (!state.player.shield && Math.random() < 0.08) state.player.shield = true;
+  else if (state.player.bombs < GAME.maxBombs && Math.random() < 0.05) state.player.bombs += 1;
+}
+
+function missTreatmentTarget(target) {
+  if (target.resolved) return;
+  const profile = ROUTE_TREATMENT_PROFILES[target.areaId];
+  target.resolved = true;
+  state.treatmentStats.missed += 1;
+  worsenVitals(profile?.worsen, { x: 790, y: 190 });
+  const activeMissEffect = state.treatmentEffects.find((effect) => effect.kind === "miss");
+  if (activeMissEffect) activeMissEffect.life = activeMissEffect.maxLife;
+  else state.treatmentEffects.push({ kind: "miss", x: 720, y: 178, life: 78, maxLife: 78, text: "MISSED TREATMENT" });
+  state.vitalsHudFlashTimer = Math.max(state.vitalsHudFlashTimer, 52);
+  state.vitalWarningType = getDominantVitalChange(profile?.worsen);
+  state.vitalWarningTimer = Math.max(state.vitalWarningTimer, 36);
+  playTreatmentCue("miss");
+  showNurseMessage("処置漏れ、患者状態が悪化", 96, { priority: 5, key: "treatmentMiss", cooldown: 60, force: true });
+}
+
+function expireTreatmentTargets(areaId) {
+  for (const target of state.treatmentTargets) {
+    if (!target.resolved && target.areaId === areaId) missTreatmentTarget(target);
+  }
+  state.treatmentTargets = state.treatmentTargets.filter((target) => !target.resolved);
+}
+
+function showNurseMessage(message, duration = 90, options = {}) {
+  if (!message) return;
+  if (typeof options === "boolean") options = { force: options, priority: options ? 4 : 1 };
+  const priority = options.priority ?? 1;
+  const key = options.key || message;
+  const cooldownUntil = state.nurseMessageCooldowns[key] || 0;
+  if (!options.bypassCooldown && state.frame < cooldownUntil) return;
+  if (!options.force && state.nurseMessageTimer > 0 && priority < state.nurseMessagePriority) return;
+  state.nurseMessage = message;
+  state.nurseMessageTimer = duration;
+  state.nurseMessagePriority = priority;
+  state.nurseMessageCooldowns[key] = state.frame + (options.cooldown ?? 120);
+}
+
+function getDominantVitalChange(changes) {
+  if (!changes) return "stability";
+  return Object.entries(changes).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))[0]?.[0] || "stability";
+}
+
+function spawnTreatmentSparks(x, y, count) {
+  for (let i = 0; i < count; i += 1) {
+    state.particles.push({
+      x,
+      y,
+      vx: (Math.random() - 0.5) * 2.2,
+      vy: -0.4 - Math.random() * 1.4,
+      life: 12 + Math.random() * 12,
+      color: i % 3 === 0 ? "#ffffff" : "#8ef6ff",
+      size: 2 + Math.random() * 2,
+      kind: "spark",
+      alpha: 0.82,
+    });
+  }
+}
+
+function updateTreatmentEffects() {
+  for (const effect of state.treatmentEffects) effect.life -= 1;
+  state.treatmentEffects = state.treatmentEffects.filter((effect) => effect.life > 0);
+}
+
+function getRouteMissionMessage(area = getCurrentArea()) {
+  const profile = getTreatmentProfile(area);
+  return profile ? `治療目標: ${profile.objective}` : "患者状態を確認しながら進むよ";
+}
+
+function calculateTreatmentRank() {
+  if (!state.vitals) return "C";
+  const vitalScore = ((100 - state.vitals.infection) + (100 - state.vitals.inflammation) + state.vitals.oxygen + state.vitals.stability) / 4;
+  const actionScore = state.treatmentStats.completed * 2.5 - state.treatmentStats.missed * 2 - state.treatmentStats.enemiesEscaped * 0.15;
+  const total = clamp(vitalScore + actionScore, 0, 100);
+  if (total >= 90) return "S";
+  if (total >= 76) return "A";
+  if (total >= 60) return "B";
+  return "C";
+}
+
+function getVitalAssessment(key, value) {
+  if (key === "infection") return value <= 35 ? "抑制" : value <= 65 ? "改善" : "要観察";
+  if (key === "inflammation") return value <= 35 ? "低下" : value <= 65 ? "改善" : "要観察";
+  if (key === "oxygen") return value >= 75 ? "安定" : value >= 45 ? "注意" : "低下";
+  return value >= 75 ? "安定" : value >= 45 ? "回復中" : "不安定";
+}
+
+function getImprovedVitalLabels() {
+  if (!state.vitals || !state.initialVitals) return "状態維持";
+  const labels = [];
+  if (state.vitals.infection < state.initialVitals.infection - 1) labels.push("感染抑制");
+  if (state.vitals.inflammation < state.initialVitals.inflammation - 1) labels.push("炎症低下");
+  if (state.vitals.oxygen > state.initialVitals.oxygen + 1) labels.push("酸素改善");
+  if (state.vitals.stability > state.initialVitals.stability + 1) labels.push("安定化");
+  return labels.length ? labels.join(" / ") : "状態維持";
+}
+
+function getWorsenedVitalLabels() {
+  if (!state.vitals || !state.initialVitals) return "なし";
+  const labels = [];
+  if (state.vitals.infection > state.initialVitals.infection + 1) labels.push("感染上昇");
+  if (state.vitals.inflammation > state.initialVitals.inflammation + 1) labels.push("炎症上昇");
+  if (state.vitals.oxygen < state.initialVitals.oxygen - 1) labels.push("酸素低下");
+  if (state.vitals.stability < state.initialVitals.stability - 1) labels.push("安定低下");
+  return labels.length ? labels.join(" / ") : "なし";
+}
+
+function getRouteTreatmentResultMessage() {
+  const finalAreaId = getCurrentRoute()[getLastRouteIndex()];
+  const success = state.treatmentStats.completed >= state.treatmentStats.missed;
+  const messages = {
+    mouth: ["口内細菌の増殖を抑制", "口内処置に未処置部位あり"],
+    throat: ["喉の炎症保護に成功", "炎症部位の処置が不十分"],
+    lung: ["肺胞保護に成功", "肺胞保護が一部不十分"],
+    esophagus: ["食道粘膜を保護", "粘膜損傷の処置が不十分"],
+    stomach: ["胃内毒素の中和に成功", "毒素中和が不十分"],
+    intestine: ["毒素吸収を抑制", "毒素ポケットを一部見逃した"],
+    vessel: ["血流閉塞を抑制", "血栓処置が一部不十分"],
+    heart: ["心拍安定を維持", "心拍ノードに未処置あり"],
+    brain: ["神経ノイズを大幅に抑制", "神経ノイズが一部残存"],
+    nerve: ["通電異常の遮断に成功", "短絡部位が一部残存"],
+  };
+  const pair = messages[finalAreaId] || ["患者状態の安定化に成功", "追加観察が必要"];
+  return success ? pair[0] : pair[1];
 }
 
 function getCurrentPatientTheme() {
@@ -1078,6 +1568,31 @@ function playRouteEventCue(cue) {
   } catch (error) {}
 }
 
+function playTreatmentCue(kind) {
+  if (!kind || !state.audioReady || !state.audioContext) return;
+  const audio = state.audioContext;
+  const settings = {
+    start: { from: 420, to: 560, type: "sine", gain: 0.018, life: 0.1 },
+    complete: { from: 480, to: 820, type: "sine", gain: 0.032, life: 0.2 },
+    miss: { from: 180, to: 105, type: "sawtooth", gain: 0.022, life: 0.18 },
+    danger: { from: 150, to: 118, type: "square", gain: 0.016, life: 0.14 },
+    rankS: { from: 520, to: 1040, type: "sine", gain: 0.032, life: 0.32 },
+  }[kind];
+  if (!settings) return;
+  try {
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.type = settings.type;
+    osc.frequency.setValueAtTime(settings.from, audio.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(settings.to, audio.currentTime + settings.life);
+    gain.gain.setValueAtTime(settings.gain, audio.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + settings.life);
+    osc.connect(gain).connect(audio.destination);
+    osc.start();
+    osc.stop(audio.currentTime + settings.life + 0.02);
+  } catch (error) {}
+}
+
 function startAmbienceTone(ambience) {
   const audio = state.audioContext;
   if (!audio) return;
@@ -1178,6 +1693,11 @@ function update() {
   state.areaEntryTimer = Math.max(0, state.areaEntryTimer - 1);
   state.powerUpNoticeTimer = Math.max(0, state.powerUpNoticeTimer - 1);
   state.routeEventNoticeTimer = Math.max(0, state.routeEventNoticeTimer - 1);
+  state.nurseMessageTimer = Math.max(0, state.nurseMessageTimer - 1);
+  if (state.nurseMessageTimer === 0) state.nurseMessagePriority = 0;
+  state.vitalWarningTimer = Math.max(0, state.vitalWarningTimer - 1);
+  state.vitalsHudFlashTimer = Math.max(0, state.vitalsHudFlashTimer - 1);
+  state.treatmentGlowTimer = Math.max(0, state.treatmentGlowTimer - 1);
   state.bossWarningTimer = Math.max(0, state.bossWarningTimer - 1);
   state.cameraShake = Math.max(0, state.cameraShake - 0.4);
   state.cameraDriftX *= 0.88;
@@ -1186,6 +1706,7 @@ function update() {
   state.screenFlashTimer = Math.max(0, state.screenFlashTimer - 1);
   state.uiNoiseTimer = Math.max(0, state.uiNoiseTimer - 1);
   state.bossDamageFlashTimer = Math.max(0, state.bossDamageFlashTimer - 1);
+  state.bossHitStopCooldown = Math.max(0, state.bossHitStopCooldown - 1);
 
   if (state.bossSpawnQueued && state.bossWarningTimer === 0 && !state.bossActive) {
     spawnBoss();
@@ -1203,6 +1724,7 @@ function update() {
   }
 
   updateStageProgress();
+  updateVitals();
   updatePlayer(player);
   updateHelper();
   updateEnemies();
@@ -1210,6 +1732,9 @@ function update() {
   updateShots();
   updateCapsules();
   updateHazards();
+  updateTreatmentTargets();
+  updateTreatmentEffects();
+  updateVitalPopups();
   updateParticles();
   updateScorePopups();
   handleCollisions();
@@ -1352,6 +1877,7 @@ function startRouteEvent(eventId) {
   if (eventDef.fakeWarning) state.fakeWarningTimer = Math.max(state.fakeWarningTimer, 96);
   if (eventDef.freezeFrames) triggerHitStop(eventDef.freezeFrames);
   playRouteEventCue(eventDef.cue);
+  showNurseMessage(`${eventDef.label}、患者反応を監視して`, 96, true);
 }
 
 function updateRouteEvent() {
@@ -1460,8 +1986,10 @@ function startExtraction() {
   state.enemyShots = [];
   state.enemies = [];
   state.hazards = [];
+  state.treatmentTargets = [];
   state.activeRouteEvent = null;
   state.routeEventNoticeTimer = 0;
+  improveVitals({ infection: -3, inflammation: -3, oxygen: 2, stability: 4 });
   setPatientBgm("extraction");
   // TODO: route / bossTypeごとの帰還BGMへ分岐する場合はここで currentBgm を差し替える。
 }
@@ -1497,6 +2025,8 @@ function updateExtractionScene() {
     state.scene = "result";
     state.gameOverTimer = 0;
     state.screenFlashTimer = 10;
+    if (!state.resultCuePlayed && calculateTreatmentRank() === "S") playTreatmentCue("rankS");
+    state.resultCuePlayed = true;
   }
 }
 
@@ -1509,8 +2039,10 @@ function updateStageProgress() {
   const area = getCurrentArea();
   spawnAreaEnemies(area);
   spawnAreaHazards(area);
+  if (state.areaFrame === 170 || state.areaFrame === 510) spawnTreatmentTarget(area);
 
   if (state.areaFrame >= getCurrentAreaDuration()) {
+    expireTreatmentTargets(area.id);
     state.areaFrame = 0;
     state.areaIndex += 1;
     if (state.areaIndex >= getCurrentRoute().length) {
@@ -1524,6 +2056,7 @@ function updateStageProgress() {
     state.routeEventCooldown = 120;
     state.routeEventsTriggered = [];
     state.routeEventNoticeTimer = 0;
+    showNurseMessage(getRouteMissionMessage(), 120, true);
   }
 }
 
@@ -1536,7 +2069,9 @@ function startBossWarning() {
   state.noteTimer = 0;
   state.activeRouteEvent = null;
   state.routeEventNoticeTimer = 0;
+  state.treatmentTargets = [];
   state.cameraShake = 6;
+  showNurseMessage("感染中枢を確認、最終処置に入るよ", 120, true);
 }
 
 function spawnBoss() {
@@ -1567,6 +2102,7 @@ function spawnBoss() {
   state.currentBgm = `${state.currentBgm}:${state.boss.type}`;
   state.bossHpLag = state.boss.maxHp;
   state.bossDamageFlashTimer = 18;
+  state.bossHitStopCooldown = 0;
   state.screenFlashTimer = 8;
 }
 
@@ -1688,7 +2224,7 @@ function spawnMuzzleFlash(x, y, color) {
 }
 
 function spawnShotHitEffect(x, y) {
-  const burstCount = state.bossActive ? 3 : 7;
+  const burstCount = state.bossActive ? 1 : 7;
   for (let i = 0; i < burstCount; i += 1) {
     state.particles.push({
       x,
@@ -1711,6 +2247,8 @@ function useBomb() {
   state.enemyShots = [];
   for (const enemy of state.enemies) enemy.hp -= 8;
   if (state.boss) state.boss.hp -= 20;
+  improveVitals({ inflammation: -1.5, oxygen: 1, stability: 3 });
+  showNurseMessage("緊急安定化を実施", 90, true);
   state.cameraShake = 14;
   for (let i = 0; i < 26; i += 1) {
     state.particles.push({
@@ -1934,6 +2472,8 @@ function updateBoss() {
     state.playerShots = [];
     state.activeRouteEvent = null;
     state.routeEventNoticeTimer = 0;
+    improveVitals({ infection: -15, inflammation: -9, oxygen: 5, stability: 8 });
+    showNurseMessage("感染源を除去、患者状態を確認", 120, true);
     setPatientBgm("clear");
     state.cameraShake = 18;
     state.screenFlashTimer = 18;
@@ -2010,20 +2550,33 @@ function updateScorePopups() {
 function handleCollisions() {
   const player = state.player;
   for (const shot of state.playerShots) {
+    for (const target of state.treatmentTargets) {
+      if (!target.resolved && hitCircleRect(shot.x, shot.y, shot.r, toRect(target))) {
+        shot.hit = true;
+        hitTreatmentTarget(target, shot.damage, shot.x, shot.y);
+        break;
+      }
+    }
     for (const enemy of state.enemies) {
+      if (shot.hit) break;
       if (hitCircleRect(shot.x, shot.y, shot.r, toRect(enemy))) {
         shot.hit = true;
         enemy.hp -= shot.damage;
         spawnShotHitEffect(shot.x, shot.y);
         triggerHitStop(2);
+        break;
       }
     }
-    if (state.boss && hitCircleRect(shot.x, shot.y, shot.r, toRect(state.boss))) {
+    if (!shot.hit && state.boss && hitCircleRect(shot.x, shot.y, shot.r, toRect(state.boss))) {
+      const shouldHitStop = state.bossHitStopCooldown === 0;
       shot.hit = true;
       state.boss.hp -= shot.damage;
       spawnShotHitEffect(shot.x, shot.y);
-      state.bossDamageFlashTimer = 8;
-      triggerHitStop(4);
+      state.bossDamageFlashTimer = Math.max(state.bossDamageFlashTimer, 10);
+      if (shouldHitStop) {
+        triggerHitStop(2);
+        state.bossHitStopCooldown = 12;
+      }
     }
   }
 
@@ -2077,7 +2630,8 @@ function cleanupEntities() {
   state.particles = state.particles.filter((p) => p.life > 0);
   if (state.playerShots.length > GAME.maxPlayerShots) state.playerShots.splice(0, state.playerShots.length - GAME.maxPlayerShots);
   if (state.enemyShots.length > GAME.maxEnemyShots) state.enemyShots.splice(0, state.enemyShots.length - GAME.maxEnemyShots);
-  if (state.particles.length > GAME.maxParticles) state.particles.splice(0, state.particles.length - GAME.maxParticles);
+  const particleLimit = state.bossActive ? Math.min(GAME.maxParticles, 110) : GAME.maxParticles;
+  if (state.particles.length > particleLimit) state.particles.splice(0, state.particles.length - particleLimit);
 
   state.enemies = state.enemies.filter((enemy) => {
     if (enemy.hp <= 0) {
@@ -2094,6 +2648,11 @@ function cleanupEntities() {
       if (Math.random() < GAME.capsuleChance) {
         state.capsules.push({ x: enemy.x, y: enemy.y, r: 10, seed: Math.random() * 999 });
       }
+      improveVitals({ infection: -0.12, inflammation: -0.05 });
+      return false;
+    }
+    if (enemy.x <= -80) {
+      onEnemyEscaped();
       return false;
     }
     return enemy.x > -80 && enemy.y > -60 && enemy.y < GAME.height + 60;
@@ -2107,6 +2666,7 @@ function applyPowerUp() {
   state.score += 100;
   state.powerUpNoticeText = `強化: ${POWER_LABELS[next] || next}`;
   state.powerUpNoticeTimer = GAME.powerUpNoticeDuration;
+  improveVitals({ oxygen: 1, stability: 1.5 });
   if (next === "SPEED") player.speed = Math.min(7.2, player.speed + 0.6);
   if (next === "NEEDLE") player.needleLevel = Math.min(2, player.needleLevel + 1);
   if (next === "CAPSULE") player.capsuleShot = true;
@@ -2133,6 +2693,7 @@ function damagePlayer() {
   state.uiNoiseTimer = 12;
   state.screenFlashTimer = 6;
   player.x = Math.max(40, player.x - 14);
+  worsenVitals({ inflammation: 1, oxygen: -1.5, stability: -4 });
   explodeAt(player.x, player.y, 18, "#ffffff");
   if (player.lives <= 0) {
     state.scene = "gameover";
@@ -2178,10 +2739,13 @@ function draw() {
   drawNonDangerEffects();
   drawHazards();
   drawParticles();
+  drawTreatmentTargets();
+  drawTreatmentEffects();
   drawEnemiesLayer();
   drawEnemyShotsLayer();
   drawItemsLayer();
   drawScorePopups();
+  drawVitalPopups();
   drawPlayerShotsLayer();
   drawHelpersLayer();
   drawPlayerLayer();
@@ -2968,6 +3532,220 @@ function drawHazards() {
   }
 }
 
+function drawTreatmentTargets() {
+  if (state.scene !== "playing") return;
+  for (const target of state.treatmentTargets) {
+    if (target.resolved) continue;
+    drawTreatmentTargetMarker(target);
+  }
+}
+
+function drawTreatmentTargetMarker(target) {
+  const area = getAreaById(target.areaId);
+  const accent = area.accent || "#8ef6ff";
+  const treatedRatio = 1 - target.hp / target.maxHp;
+  const pulse = 1 + Math.sin(target.pulse) * 0.06;
+  ctx.save();
+  ctx.translate(target.x, target.y);
+  ctx.scale(pulse, pulse);
+  ctx.fillStyle = "rgba(7, 18, 24, 0.82)";
+  ctx.beginPath();
+  ctx.arc(0, 0, 27, 0, Math.PI * 2);
+  ctx.fill();
+  drawTreatmentTargetCore(target);
+
+  const ringRadius = 31 - treatedRatio * 7;
+  ctx.strokeStyle = target.hitFlash > 0 ? "#ffffff" : accent;
+  ctx.lineWidth = target.hitFlash > 0 ? 4 : 2.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, ringRadius, -Math.PI / 2, Math.PI * 1.5);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(223, 252, 255, 0.72)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, 21, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (target.hp / target.maxHp));
+  ctx.stroke();
+
+  const scanY = -20 + target.scan;
+  ctx.strokeStyle = "rgba(142, 246, 255, 0.42)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-20, scanY);
+  ctx.lineTo(20, scanY);
+  ctx.stroke();
+
+  ctx.fillStyle = "#dffcff";
+  ctx.fillRect(-2, -7, 4, 14);
+  ctx.fillRect(-7, -2, 14, 4);
+  drawTreatmentProgress(target, accent);
+  ctx.restore();
+}
+
+function drawTreatmentTargetCore(target) {
+  const t = state.frame * 0.06;
+  if (target.areaId === "mouth") {
+    ctx.fillStyle = "rgba(245, 250, 242, 0.5)";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 18, 11, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(170, 210, 190, 0.6)";
+    ctx.fillRect(-11, -2, 5, 4);
+    ctx.fillRect(5, 3, 6, 3);
+  } else if (target.areaId === "throat") {
+    ctx.fillStyle = "rgba(255, 91, 112, 0.58)";
+    for (let i = 0; i < 4; i += 1) {
+      ctx.beginPath();
+      ctx.arc(Math.cos(i * 1.6) * 9, Math.sin(i * 1.6) * 7, 8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (target.areaId === "lung") {
+    ctx.fillStyle = "rgba(207, 247, 255, 0.58)";
+    for (let i = 0; i < 5; i += 1) {
+      ctx.beginPath();
+      ctx.arc(Math.cos(i * 1.25) * 10, Math.sin(i * 1.25) * 9, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = "rgba(255, 105, 130, 0.68)";
+    ctx.beginPath();
+    ctx.arc(4, -3, 4, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (target.areaId === "esophagus") {
+    ctx.fillStyle = "rgba(255, 159, 176, 0.55)";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 11, 20, Math.sin(t) * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 230, 236, 0.72)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-5, -13);
+    ctx.lineTo(5, 13);
+    ctx.stroke();
+  } else if (target.areaId === "stomach" || target.areaId === "intestine") {
+    ctx.fillStyle = target.areaId === "stomach" ? "rgba(206, 180, 62, 0.72)" : "rgba(170, 111, 224, 0.64)";
+    ctx.beginPath();
+    ctx.moveTo(-17, -5);
+    ctx.quadraticCurveTo(-8, -19, 4, -12);
+    ctx.quadraticCurveTo(19, -5, 13, 10);
+    ctx.quadraticCurveTo(0, 19, -15, 9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "rgba(244, 232, 119, 0.75)";
+    ctx.beginPath();
+    ctx.arc(5, 1, 5, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (target.areaId === "vessel") {
+    ctx.fillStyle = "rgba(116, 12, 30, 0.78)";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 18, 13, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 142, 157, 0.74)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-14, -2);
+    ctx.lineTo(14, 2);
+    ctx.stroke();
+  } else if (target.areaId === "heart") {
+    const beat = 1 + Math.max(0, Math.sin(t * 1.4)) * 0.18;
+    ctx.save();
+    ctx.scale(beat, beat);
+    ctx.fillStyle = "rgba(255, 85, 108, 0.66)";
+    ctx.beginPath();
+    ctx.moveTo(0, -17);
+    ctx.lineTo(16, 0);
+    ctx.lineTo(0, 17);
+    ctx.lineTo(-16, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  } else if (target.areaId === "brain") {
+    ctx.fillStyle = "rgba(184, 157, 255, 0.65)";
+    ctx.beginPath();
+    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(230, 222, 255, 0.8)";
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 5; i += 1) {
+      const a = i * 1.25 + t * 0.08;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * 7, Math.sin(a) * 7);
+      ctx.lineTo(Math.cos(a) * 19, Math.sin(a) * 19);
+      ctx.stroke();
+    }
+  } else {
+    ctx.fillStyle = "rgba(174, 245, 255, 0.7)";
+    ctx.beginPath();
+    ctx.arc(-11, 0, 7, 0, Math.PI * 2);
+    ctx.arc(11, 0, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.9)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-5, 0);
+    ctx.lineTo(-1, -6);
+    ctx.lineTo(3, 6);
+    ctx.lineTo(7, 0);
+    ctx.stroke();
+  }
+}
+
+function drawTreatmentProgress(target, accent) {
+  const remaining = clamp(target.hp / target.maxHp, 0, 1);
+  ctx.fillStyle = "rgba(255,255,255,0.14)";
+  ctx.fillRect(-28, 34, 56, 5);
+  ctx.fillStyle = accent;
+  ctx.fillRect(-28, 34, 56 * remaining, 5);
+  ctx.fillStyle = target.treatmentStarted ? "#8ef6ff" : "#ffffff";
+  ctx.font = "bold 8px monospace";
+  ctx.fillText(target.treatmentStarted ? "TREATING" : "SHOT TO TREAT", -28, 50);
+}
+
+function drawTreatmentEffects() {
+  for (const effect of state.treatmentEffects) {
+    const progress = 1 - effect.life / effect.maxLife;
+    const alpha = Math.min(1, effect.life / 18);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    if (effect.kind === "complete") {
+      ctx.translate(effect.x, effect.y);
+      ctx.strokeStyle = "#8ef6ff";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, 20 + progress * 38, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, 12 + progress * 24, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = "#dffcff";
+      ctx.font = "bold 13px monospace";
+      ctx.fillText(effect.text, -42, -35 - progress * 8);
+    } else {
+      ctx.fillStyle = "rgba(70, 6, 18, 0.78)";
+      ctx.fillRect(effect.x - 104, effect.y - 18, 208, 36);
+      ctx.strokeStyle = "#ff8297";
+      ctx.strokeRect(effect.x - 104, effect.y - 18, 208, 36);
+      ctx.fillStyle = "#ffe9ed";
+      ctx.font = "bold 14px monospace";
+      ctx.fillText(effect.text, effect.x - 82, effect.y + 5);
+    }
+    ctx.restore();
+  }
+}
+
+function drawVitalPopups() {
+  for (const popup of state.vitalPopups) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, popup.life / 16);
+    ctx.fillStyle = "rgba(5, 14, 20, 0.72)";
+    ctx.fillRect(popup.x - 4, popup.y - 12, 88, 17);
+    ctx.fillStyle = popup.color;
+    ctx.font = "bold 11px monospace";
+    ctx.fillText(popup.text, popup.x, popup.y);
+    ctx.restore();
+  }
+}
+
 function drawAcidHazardZone() {
   const tintBoost = getStomachTintBoost();
   const acidY = GAME.height - 54 - (Math.sin(state.frame * 0.06) * 10 + 14);
@@ -3625,12 +4403,9 @@ function drawBossAsset(boss) {
     ctx.restore();
     return false;
   }
-  ctx.shadowBlur = 14;
-  ctx.shadowColor = getBossConfig(boss).particle;
   ctx.beginPath();
   ctx.arc(0, 0, 84, 0, Math.PI * 2);
   outlineCurrentShape("#fff1f5", 5);
-  ctx.shadowBlur = 0;
   ctx.strokeStyle = getBossConfig(boss).particle;
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -3643,7 +4418,7 @@ function drawBossAsset(boss) {
 function drawPlayerShot(shot) {
   if (shot.type === "capsule") {
     ctx.save();
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = state.bossActive ? 0 : 10;
     ctx.shadowColor = "rgba(103, 244, 255, 0.8)";
     ctx.fillStyle = "#8af8ff";
     ctx.beginPath();
@@ -3669,7 +4444,7 @@ function drawPlayerShot(shot) {
     return;
   }
   ctx.save();
-  ctx.shadowBlur = 12;
+  ctx.shadowBlur = state.bossActive ? 0 : 12;
   ctx.shadowColor = "rgba(100, 240, 255, 0.95)";
   ctx.strokeStyle = "rgba(107, 244, 255, 0.75)";
   ctx.lineWidth = shot.type === "helper" ? 6 : 7;
@@ -3696,7 +4471,7 @@ function drawPlayerShot(shot) {
 
 function drawEnemyShot(shot) {
   ctx.save();
-  ctx.shadowBlur = 10;
+  ctx.shadowBlur = state.bossActive ? 0 : 10;
   if (shot.type === "toxin") {
     ctx.shadowColor = "rgba(185, 117, 255, 0.85)";
     ctx.fillStyle = "#9a63ff";
@@ -3794,6 +4569,7 @@ function drawUi() {
   drawEcgLine(634, 15, 126, 24);
   drawConditionWarningHud(766, 15);
   drawRouteMapHud();
+  drawVitalsHud();
 
   if (state.boss) {
     ctx.fillStyle = "rgba(255,255,255,0.16)";
@@ -3943,6 +4719,93 @@ function drawConditionWarningHud(x, y) {
   ctx.fillStyle = "#dffcff";
   ctx.font = "10px monospace";
   ctx.fillText(condition.warning || "安定", x, y + 22);
+}
+
+function drawVitalsHud() {
+  if (!state.vitals) return;
+  const warningJitter = state.vitalWarningType === "stability" && state.vitalWarningTimer > 0
+    ? Math.sin(state.frame * 2.4) * 1.5
+    : 0;
+  const x = 774 + warningJitter;
+  const y = state.noteTimer > 0 ? 114 : 58;
+  const w = 168;
+  const rows = [
+    ["感染", "infection", false],
+    ["炎症", "inflammation", false],
+    ["酸素", "oxygen", true],
+    ["安定", "stability", true],
+  ];
+  drawMonitorPanel(x, y, w, 104);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "bold 10px monospace";
+  ctx.fillText("PATIENT STATUS", x + 10, y + 16);
+  rows.forEach(([label, key, positive], index) => {
+    const value = state.vitals[key];
+    const danger = positive ? value <= 38 : value >= 78;
+    const rowY = y + 32 + index * 17;
+    ctx.fillStyle = danger && Math.floor(state.frame / 12) % 2 === 0 ? "#ff768d" : "#dffcff";
+    ctx.font = "10px monospace";
+    ctx.fillText(label, x + 10, rowY);
+    ctx.fillText(String(Math.round(value)).padStart(3, "0"), x + 42, rowY);
+    ctx.fillStyle = "rgba(255,255,255,0.12)";
+    ctx.fillRect(x + 70, rowY - 8, 86, 6);
+    ctx.fillStyle = danger ? "#ff768d" : positive ? "#8ef6ff" : "#fff5bf";
+    const displayValue = positive ? value : 100 - value;
+    ctx.fillRect(x + 70, rowY - 8, 86 * (displayValue / 100), 6);
+  });
+  if (state.vitalsHudFlashTimer > 0 && Math.floor(state.vitalsHudFlashTimer / 5) % 2 === 0) {
+    ctx.strokeStyle = "rgba(255, 94, 116, 0.9)";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x, y, w, 104);
+  }
+}
+
+function drawNurseMessage() {
+  if (state.nurseMessageTimer <= 0 || !state.nurseMessage) return;
+  const alpha = Math.min(1, state.nurseMessageTimer / 18);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  drawMonitorPanel(250, 400, 460, 38);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "bold 11px monospace";
+  ctx.fillText("NURSE COM", 266, 416);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 15px sans-serif";
+  ctx.fillText(state.nurseMessage, 354, 424);
+  ctx.restore();
+}
+
+function drawVitalWarningEffects() {
+  if (state.vitalWarningTimer <= 0) return;
+  const alpha = Math.min(0.14, state.vitalWarningTimer / 420);
+  ctx.save();
+  if (state.vitalWarningType === "oxygen") {
+    ctx.fillStyle = `rgba(90, 190, 220, ${alpha})`;
+    ctx.fillRect(0, 0, 30, GAME.height);
+    ctx.fillRect(GAME.width - 30, 0, 30, GAME.height);
+    ctx.fillStyle = `rgba(5, 20, 34, ${alpha * 0.72})`;
+    ctx.fillRect(0, 0, GAME.width, 18);
+    ctx.fillRect(0, GAME.height - 18, GAME.width, 18);
+  } else if (state.vitalWarningType === "stability") {
+    ctx.strokeStyle = `rgba(255, 110, 132, ${alpha * 4})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, 86);
+    for (let x = 0; x <= GAME.width; x += 48) {
+      ctx.lineTo(x, 86 + Math.sin(state.frame * 0.8 + x) * 7);
+    }
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = `rgba(255, 54, 86, ${alpha * 0.7})`;
+    ctx.fillRect(0, 0, GAME.width, 10);
+    ctx.fillRect(0, GAME.height - 10, GAME.width, 10);
+    ctx.fillStyle = `rgba(180, 30, 86, ${alpha * 0.45})`;
+    for (let i = 0; i < 5; i += 1) {
+      const y = 100 + i * 72 + Math.sin(state.frame * 0.2 + i) * 8;
+      ctx.fillRect(0, y, GAME.width, 2);
+    }
+  }
+  ctx.restore();
 }
 
 function drawEcgLine(x, y, w, h) {
@@ -4126,6 +4989,13 @@ function drawOverlays() {
     ctx.restore();
   }
 
+  drawVitalWarningEffects();
+  if (state.treatmentGlowTimer > 0) {
+    ctx.fillStyle = `rgba(190, 255, 255, ${state.treatmentGlowTimer / 220})`;
+    ctx.fillRect(0, 0, GAME.width, GAME.height);
+  }
+  drawNurseMessage();
+
   if (state.damageFlashTimer > 0) {
     ctx.fillStyle = `rgba(255, 60, 60, ${state.damageFlashTimer / 34})`;
     ctx.fillRect(0, 0, GAME.width, GAME.height);
@@ -4300,6 +5170,9 @@ function drawPatientSelectScreen() {
   ctx.font = "bold 14px monospace";
   ctx.fillText(`氏名: ${patient.name.toUpperCase()}    年齢: ${patient.age}`, 118, 420);
   ctx.fillText(`経路: ${getRouteType(patient)}    状態: ${getConditionLabel(patient)}    選択可: ${patient.unlocked ? "可" : "不可"}`, 118, 446);
+  ctx.fillStyle = "#dffcff";
+  ctx.font = "bold 11px sans-serif";
+  ctx.fillText(`治療目標: ${patient.treatmentGoal}`, 118, 464);
   ctx.fillStyle = "#fff5bf";
   ctx.font = "bold 18px monospace";
   ctx.fillText("← / → で変更", 170, 486);
@@ -4513,7 +5386,7 @@ function drawBriefingScreen() {
     ctx.fillText(`- ${line}`, 126, 316 + index * 28);
   });
 
-  drawMonitorPanel(430, 132, 428, 160);
+  drawMonitorPanel(430, 132, 428, 174);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "12px monospace";
   ctx.fillText("診断", 452, 162);
@@ -4522,24 +5395,30 @@ function drawBriefingScreen() {
   ctx.fillText(patient.diagnosis, 452, 204);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "12px monospace";
-  ctx.fillText("任務", 452, 244);
+  ctx.fillText("任務", 452, 232);
   ctx.fillStyle = "#fff4bf";
-  ctx.font = "bold 24px sans-serif";
-  ctx.fillText(patient.mission, 452, 278);
-
-  drawMonitorPanel(430, 310, 428, 102);
-  drawEcgLine(444, 324, 192, 24);
+  ctx.font = "bold 22px sans-serif";
+  ctx.fillText(patient.mission, 452, 260);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "12px monospace";
-  ctx.fillText("侵入経路", 448, 354);
+  ctx.fillText("治療目標", 452, 282);
+  ctx.fillStyle = "#dffcff";
+  ctx.font = "bold 16px sans-serif";
+  ctx.fillText(patient.treatmentGoal, 452, 302);
+
+  drawMonitorPanel(430, 318, 428, 116);
+  drawEcgLine(444, 326, 192, 24);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "12px monospace";
+  ctx.fillText("侵入経路", 448, 358);
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 15px monospace";
-  ctx.fillText(formatEntryRoute(patient), 448, 376);
+  ctx.fillText(formatEntryRoute(patient), 448, 380);
   ctx.fillStyle = "#dffcff";
   ctx.font = "13px monospace";
-  ctx.fillText(`体内状態 : ${getRouteType(patient)} / ${getConditionLabel(patient)}`, 448, 400);
+  ctx.fillText(`体内状態 : ${getRouteType(patient)} / ${getConditionLabel(patient)}`, 448, 404);
   ctx.fillStyle = "#fff5bf";
-  drawWrappedText(getRouteConfig(getAreaById(getCurrentRoute(patient)[getCurrentRoute(patient).length - 1])).briefingText, 448, 420, 370, 16, 13);
+  drawWrappedText(getRouteConfig(getAreaById(getCurrentRoute(patient)[getCurrentRoute(patient).length - 1])).briefingText, 448, 424, 370, 12, 11);
 
   if (Math.floor(state.frame / 24) % 2 === 0) {
     ctx.fillStyle = "#fff5bf";
@@ -4698,6 +5577,8 @@ function getExtractionRouteMessage() {
 
 function drawMissionResultScreen() {
   const patient = getCurrentPatient();
+  const rank = calculateTreatmentRank();
+  const vitals = state.vitals || initVitals(patient);
   ctx.fillStyle = "rgba(6, 12, 18, 0.9)";
   ctx.fillRect(86, 52, 788, 436);
   ctx.strokeStyle = "rgba(120, 236, 255, 0.34)";
@@ -4734,31 +5615,45 @@ function drawMissionResultScreen() {
   drawMonitorPanel(116, 382, 350, 48);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "11px monospace";
-  ctx.fillText("BODY STATUS", 138, 400);
-  ctx.fillText("IMMUNE RESPONSE", 260, 400);
-  ctx.fillText("INFLAMMATION", 390, 400);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 12px monospace";
-  ctx.fillText("[ 安定 ]", 138, 420);
-  ctx.fillText("[ 正常 ]", 260, 420);
-  ctx.fillText("[ 低下 ]", 390, 420);
+  ctx.fillText("治療評価", 138, 400);
+  ctx.fillText("処置完了", 238, 400);
+  ctx.fillText("未処置", 364, 400);
+  ctx.fillStyle = rank === "S" ? "#fff5bf" : "#ffffff";
+  ctx.font = "bold 22px monospace";
+  ctx.fillText(rank, 142, 424);
+  ctx.font = "bold 14px monospace";
+  ctx.fillText(String(state.treatmentStats.completed), 262, 420);
+  ctx.fillText(String(state.treatmentStats.missed), 382, 420);
 
   drawMonitorPanel(488, 142, 358, 258);
   drawEcgLine(506, 160, 216, 26);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "12px monospace";
-  ctx.fillText("任務サマリー", 510, 214);
+  ctx.fillText("最終患者状態", 510, 214);
   ctx.fillStyle = "#ffffff";
-  ctx.font = "18px sans-serif";
-  ctx.fillText("感染源を除去し、患者状態は安定。", 510, 244);
-  ctx.fillText(`観察状態: ${getConditionLabel(patient)}`, 510, 268);
-  drawWrappedText(`攻略経路: ${formatEntryRoute(patient)}`, 510, 292, 306, 18, 16);
+  ctx.font = "14px monospace";
+  ctx.fillText(`感染 ${Math.round(vitals.infection)} : ${getVitalAssessment("infection", vitals.infection)}`, 510, 240);
+  ctx.fillText(`炎症 ${Math.round(vitals.inflammation)} : ${getVitalAssessment("inflammation", vitals.inflammation)}`, 664, 240);
+  ctx.fillText(`酸素 ${Math.round(vitals.oxygen)} : ${getVitalAssessment("oxygen", vitals.oxygen)}`, 510, 266);
+  ctx.fillText(`安定 ${Math.round(vitals.stability)} : ${getVitalAssessment("stability", vitals.stability)}`, 664, 266);
   ctx.fillStyle = "#8ef6ff";
   ctx.font = "12px monospace";
-  ctx.fillText("学習メモ", 510, 326);
+  ctx.fillText("改善", 510, 292);
+  ctx.fillStyle = "#fff5bf";
+  drawWrappedText(getImprovedVitalLabels(), 558, 292, 254, 14, 12);
+  ctx.fillStyle = "#ffb0bc";
+  ctx.font = "12px monospace";
+  ctx.fillText("悪化", 510, 314);
+  drawWrappedText(getWorsenedVitalLabels(), 558, 314, 254, 14, 12);
+  ctx.fillStyle = "#fff5bf";
+  ctx.font = "bold 15px sans-serif";
+  ctx.fillText(getRouteTreatmentResultMessage(), 510, 340);
+  ctx.fillStyle = "#8ef6ff";
+  ctx.font = "12px monospace";
+  ctx.fillText("学習メモ", 510, 360);
   ctx.fillStyle = "#ffffff";
-  drawWrappedText(getRouteLearningLine(patient), 510, 346, 306, 16, 14);
-  drawWrappedText(state.learningSummary[1] || patient.learningSummary[1], 510, 378, 306, 16, 14);
+  drawWrappedText(getRouteLearningLine(patient), 510, 378, 306, 14, 12);
+  drawWrappedText(state.learningSummary[1] || patient.learningSummary[1], 510, 396, 306, 12, 10);
 
   if (Math.floor(state.frame / 24) % 2 === 0) {
     ctx.fillStyle = "#fff5bf";
@@ -5016,6 +5911,7 @@ function beginPlaying() {
   setPatientBgm("normal");
   state.screenFlashTimer = 6;
   state.stageEntryFlashTimer = 20;
+  showNurseMessage(getRouteMissionMessage(), 120, true);
 }
 
 function returnToTitle() {
